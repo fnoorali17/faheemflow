@@ -109,6 +109,7 @@ app.post('/admin/create-user', async (req, res) => {
   const id = uid();
   db.prepare('INSERT INTO users (id,email,password_hash,name) VALUES (?,?,?,?)').run(id, email.toLowerCase().trim(), hash, name);
   // Seed sample data for new user
+  db.pragma('foreign_keys = OFF');
   const p1 = uid(), p2 = uid(), s1 = uid(), s2 = uid(), s3 = uid(), s4 = uid(), s5 = uid();
   const today = new Date().toISOString().slice(0, 10);
   const nxt = d => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
@@ -123,6 +124,7 @@ app.post('/admin/create-user', async (req, res) => {
   const hIds = db.prepare('SELECT id FROM habits WHERE user_id=? ORDER BY sort_order').all(id).map(r => r.id);
   const insl = db.prepare('INSERT OR IGNORE INTO habit_logs (habit_id,log_date) VALUES (?,?)');
   Object.entries({0:[0,1,2,3,5],1:[0,1,3,4,6,7],2:[1,2,4,7],3:[0,2,5]}).forEach(([i,days]) => days.forEach(d => insl.run(hIds[i], new Date(Date.now()-d*86400000).toISOString().slice(0,10))));
+  db.pragma('foreign_keys = ON');
   res.json({ ok: true, id, email, name });
 });
 
