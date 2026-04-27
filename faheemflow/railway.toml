@@ -1,0 +1,10 @@
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[build.env]
+RAILPACK_BUILD_APT_PACKAGES = "python3 make g++"

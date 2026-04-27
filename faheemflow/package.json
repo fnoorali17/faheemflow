@@ -1,0 +1,17 @@
+{
+  "name": "faheemflow",
+  "version": "2.0.0",
+  "description": "FaheemFlow — personal task + habit tracker",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.3",
+    "connect-sqlite3": "^0.9.13",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "googleapis": "^140.0.0"
+  },
+  "engines": { "node": ">=18.0.0" }
+}
