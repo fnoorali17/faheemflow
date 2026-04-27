@@ -108,23 +108,24 @@ app.post('/admin/create-user', async (req, res) => {
   const hash = await bcrypt.hash(password, 12);
   const id = uid();
   db.prepare('INSERT INTO users (id,email,password_hash,name) VALUES (?,?,?,?)').run(id, email.toLowerCase().trim(), hash, name);
-  // Seed sample data for new user
-  db.pragma('foreign_keys = OFF');
+  // Seed sample data for new user (wrapped in try/catch to handle restarts gracefully)
+  try { db.pragma('foreign_keys = OFF');
   const p1 = uid(), p2 = uid(), s1 = uid(), s2 = uid(), s3 = uid(), s4 = uid(), s5 = uid();
   const today = new Date().toISOString().slice(0, 10);
   const nxt = d => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
-  db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p1, id, 'Work', '#8b5cf6', 0);
-  db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p2, id, 'Personal', '#3b82f6', 1);
-  [s1,s2,s3].forEach((s,i) => db.prepare('INSERT INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s, p1, id, ['In Progress','This Week','Backlog'][i], i));
-  [s4,s5].forEach((s,i) => db.prepare('INSERT INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s, p2, id, ['Errands','Goals'][i], i));
-  const ins = db.prepare('INSERT INTO tasks (id,user_id,name,due_date,priority,project_id,section_id,tags,is_urgent,is_important,pomos) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  db.prepare('INSERT OR IGNORE INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p1, id, 'Work', '#8b5cf6', 0);
+  db.prepare('INSERT OR IGNORE INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p2, id, 'Personal', '#3b82f6', 1);
+  [s1,s2,s3].forEach((s,i) => db.prepare('INSERT OR IGNORE INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s, p1, id, ['In Progress','This Week','Backlog'][i], i));
+  [s4,s5].forEach((s,i) => db.prepare('INSERT OR IGNORE INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s, p2, id, ['Errands','Goals'][i], i));
+  const ins = db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,due_date,priority,project_id,section_id,tags,is_urgent,is_important,pomos) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
   [[uid(),'Review Q2 operations report',today,1,p1,s1,'["urgent","review"]',1,1,2],[uid(),'Set up Claude workflow templates',today,2,p1,s1,'["research"]',0,1,3],[uid(),'Research AI consulting competitors',nxt(1),2,p1,s2,'["research"]',1,0,2],[uid(),'Draft SOP template for onboarding',nxt(3),3,p1,s3,'[]',0,1,4],[uid(),'Book dentist appointment',today,3,p2,s4,'["personal"]',1,0,1],[uid(),'Renew gym membership',nxt(2),4,p2,s4,'[]',0,0,1],[uid(),'Read AI for Everyone Chapter 3',nxt(4),3,p2,s5,'["research"]',0,1,2]].forEach(t => ins.run(id, ...t));
-  const insh = db.prepare('INSERT INTO habits (id,user_id,emoji,name,sort_order) VALUES (?,?,?,?,?)');
+  const insh = db.prepare('INSERT OR IGNORE INTO habits (id,user_id,emoji,name,sort_order) VALUES (?,?,?,?,?)');
   [[uid(),'💧','Drink 8 glasses of water',0],[uid(),'📚','Read for 20 minutes',1],[uid(),'🏃','Exercise',2],[uid(),'✍️','Journal or reflect',3]].forEach(h => insh.run(id, ...h));
   const hIds = db.prepare('SELECT id FROM habits WHERE user_id=? ORDER BY sort_order').all(id).map(r => r.id);
   const insl = db.prepare('INSERT OR IGNORE INTO habit_logs (habit_id,log_date) VALUES (?,?)');
   Object.entries({0:[0,1,2,3,5],1:[0,1,3,4,6,7],2:[1,2,4,7],3:[0,2,5]}).forEach(([i,days]) => days.forEach(d => insl.run(hIds[i], new Date(Date.now()-d*86400000).toISOString().slice(0,10))));
   db.pragma('foreign_keys = ON');
+  } catch(e) { console.log('Seed note:', e.message); }
   res.json({ ok: true, id, email, name });
 });
 
