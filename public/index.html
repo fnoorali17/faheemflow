@@ -172,7 +172,6 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .tchk{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--bh);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .tchk:hover{border-color:var(--accent)}.ti.done .tchk{background:var(--green);border-color:var(--green)}
 .tbody{flex:1;min-width:0}
-.ttxt{font-size:14px;font-weight:500;color:var(--text);line-height:1.4}
 .tdue{font-size:12px;color:var(--t3);margin-top:3px}
 .tdue .dl{font-weight:600}
 .tdue.ov .dl,.tdue.ov .dv{color:var(--danger)}
@@ -197,6 +196,11 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 /* NOTES EXPAND */
 .task-notes{padding:4px 12px 8px 36px;font-size:13px;color:var(--t2);line-height:1.6;white-space:pre-wrap;border-top:1px solid var(--border);background:var(--bg);border-radius:0 0 var(--r) var(--r)}
 .task-notes.hidden{display:none}
+.task-detail{border-top:1.5px solid var(--border);padding:10px 12px 12px;background:var(--bg);border-radius:0 0 var(--r) var(--r)}
+.task-detail-notes{font-size:13px;color:var(--t2);line-height:1.6;white-space:pre-wrap;margin-bottom:10px;padding:8px 10px;background:var(--surface);border-radius:6px;border:1px solid var(--border)}
+.task-detail-acts{display:flex;gap:6px;align-items:center}
+.ttxt{font-size:14px;font-weight:500;color:var(--text);line-height:1.4;cursor:pointer}
+.ttxt:hover{color:var(--accent)}
 
 /* SUBTASKS */
 .subtask-toggle{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t3);font-weight:600;cursor:pointer;padding:3px 0 4px 36px}
@@ -554,7 +558,9 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
         <div class="tsug" id="tsug"></div>
       </div>
       <div class="tagpre" id="tagpre"></div>
+      <div class="tagpre" id="tagpre2" style="display:none"></div>
       <div class="hint">Tip: #urgent #meeting #review</div>
+      <textarea class="enotes" id="a-notes" placeholder="Add notes (optional)…" style="margin:0 14px 8px;width:calc(100% - 28px);min-height:50px;font-size:13px"></textarea>
       <div class="inm">
         <input type="date" class="sel" id="a-dt"/>
         <select class="sel" id="a-pri"><option value="1">🔴 P1</option><option value="2">🟠 P2</option><option value="3" selected>🔵 P3</option><option value="4">⚪ P4</option></select>
@@ -613,7 +619,7 @@ const DLBL=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 let projects=[], tasks=[], habits=[], currentUser=null;
 let view='today', tagFilter=null, selColor=PCOLS[4];
-let smProj=null, editId=null, expandedSubtasks=new Set(), expandedNotes=new Set();
+let smProj=null, editId=null, expandedSubtasks=new Set(), expandedNotes=new Set(), expandedTask=null;
 let pomoIval=null, pomoSecs=0, pomoTotal=0, pomoId=null, pomoPaused=false;
 let habitWkOff=0, selEmoji='🌱', editHabId=null, showHabAdd=false;
 let ovSort='priority';
@@ -810,7 +816,7 @@ async function renderSettings(){
         <div class="set-row">
           <div class="set-row-info">
             <div class="set-row-label">Access Token</div>
-            <div class="set-row-sub">Get your token from the TickTick OAuth flow (see setup guide)</div>
+            <div class="set-row-sub">Get your token: Go to <strong>developer.ticktick.com</strong> → create an app → use the OAuth flow to get an access token. Your token starts with a long UUID string. Tokens expire after ~6 months.</div>
             <input class="set-input" id="set-tt-token" type="password" placeholder="${s.has_ticktick?'Token saved — enter new token to update':'Paste your TickTick access token'}"/>
             <div class="set-acts">
               <button class="set-btn primary" onclick="saveTickTick()">Save token</button>
@@ -903,7 +909,7 @@ function openAdd(pid,sid){
   const d=document.getElementById('a-dt');if(!d.value)d.value=td();
   setTimeout(()=>document.getElementById('add-in').focus(),80);
 }
-function closeAdd(){document.getElementById('taw').classList.remove('open');document.getElementById('add-in').value='';document.getElementById('tagpre').innerHTML='';document.getElementById('tsug').classList.remove('open');}
+function closeAdd(){document.getElementById('taw').classList.remove('open');document.getElementById('add-in').value='';const an=document.getElementById('a-notes');if(an)an.value='';document.getElementById('tagpre').innerHTML='';document.getElementById('tsug').classList.remove('open');}
 function refProjSel(pid){
   const s=document.getElementById('a-proj');
   s.innerHTML='<option value="">No project</option>'+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -926,12 +932,20 @@ document.addEventListener('click',e=>{if(!AI.contains(e.target)&&!SB.contains(e.
 AI.addEventListener('keydown',e=>{if(e.key==='Enter'&&!SB.classList.contains('open'))saveTask();if(e.key==='Escape')closeAdd();});
 async function saveTask(){
   const raw=AI.value.trim();if(!raw)return;
-  const task={id:uid(),name:stripTags(raw)||raw,notes:'',due_date:document.getElementById('a-dt').value||null,
+  const task={id:uid(),name:stripTags(raw)||raw,notes:document.getElementById('a-notes')?.value.trim()||'',due_date:document.getElementById('a-dt').value||null,
     priority:+document.getElementById('a-pri').value,project_id:document.getElementById('a-proj').value||null,
     section_id:document.getElementById('a-sec').value||null,tags:parseTags(raw),is_urgent:false,is_important:false,pomos:1};
   tasks.push({...task,is_done:false,today_pick:false,parent_id:null});
   closeAdd();render();await POST('/tasks',task);
   document.getElementById('a-dt').value=td();document.getElementById('a-pri').value='3';
+}
+
+// ── TASK DETAIL ──────────────────────────────────────────────
+function togDetail(id){
+  expandedTask = expandedTask === id ? null : id;
+  // Close edit mode if switching to detail
+  if(editId && editId !== id) editId = null;
+  render();
 }
 
 // ── NOTES ────────────────────────────────────────────────────
@@ -1028,9 +1042,9 @@ function taskRow(tk,showProj){
       <div class="pip" style="background:${PC[(tk.priority||4)-1]}"></div>
       <div class="tchk" onclick="togDone('${tk.id}')">${tk.is_done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div>
       <div class="tbody">
-        <div class="ttxt">${tk.name}</div>
+        <div class="ttxt" onclick="togDetail('${tk.id}')">${tk.name}</div>
         ${dueLine(tk)}
-        <div class="ttags">${projH}${tagsH}<span class="ptag" onclick="startPomo('${tk.id}')">🍅 ${pomos}×${PMIN}m</span>${subProgress}${hasNotes?`<span class="notes-icon" onclick="togNotes('${tk.id}')" title="Notes">📝</span>`:''}${tk.gcal_event_id?`<span class="tdbadge gcal-badge">📅 Cal</span>`:''} ${tk.todoist_task_id?`<span class="tdbadge td-badge">✓ Todoist</span>`:''} ${tk.ticktick_task_id?`<span class="tdbadge tt-badge">✓ TickTick</span>`:''}</div>
+        <div class="ttags">${projH}${tagsH}<span class="ptag" onclick="startPomo('${tk.id}')">🍅 ${pomos}×${PMIN}m</span>${subProgress}${hasNotes?'<span class="notes-icon" title="Has notes">📝</span>':''}${tk.gcal_event_id?`<span class="tdbadge gcal-badge">📅 Cal</span>`:''} ${tk.todoist_task_id?`<span class="tdbadge td-badge">✓ Todoist</span>`:''} ${tk.ticktick_task_id?`<span class="tdbadge tt-badge">✓ TickTick</span>`:''}</div>
       </div>
       <div class="tbtns">
         <button class="tbt" onclick="togExpandSubtasks('${tk.id}')" title="Subtasks">⊕</button>
@@ -1038,7 +1052,14 @@ function taskRow(tk,showProj){
         <button class="tbt del" onclick="delTask('${tk.id}')">🗑</button>
       </div>
     </div>
-    ${hasNotes?`<div class="task-notes${notesExpanded?'':' hidden'}" id="tnotes-${tk.id}">${tk.notes}</div>`:''}
+    ${expandedTask===tk.id&&!isEd?`<div class="task-detail">
+      ${hasNotes?`<div class="task-detail-notes">${tk.notes}</div>`:'<div style="font-size:12px;color:var(--t3);font-style:italic;margin-bottom:10px">No notes</div>'}
+      <div class="task-detail-acts">
+        <button class="bsm bsav" onclick="startEdit('${tk.id}')">✎ Edit task</button>
+        ${subs.length?`<span style="font-size:12px;color:var(--t3)">${subs.filter(s=>s.is_done).length}/${subs.length} subtasks done</span>`:''}
+        <button class="bsm bcnl" style="margin-left:auto" onclick="togDetail('${tk.id}')">Close</button>
+      </div>
+    </div>`:''}
     ${subtaskBlock(tk.id)}
     ${isEd?`<div class="ef">
       <input class="ein" id="ei-${tk.id}" value="${tk.name}${(tk.tags||[]).map(t=>' #'+t).join('')}"/>
