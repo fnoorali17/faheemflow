@@ -145,7 +145,7 @@ app.post('/api/gcal/sync', requireAuth, async (req, res) => {
   const results = { created: 0, updated: 0, errors: [] };
   for (const task of tasks) {
     const tags = (task.tags||[]).length ? `Tags: ${task.tags.map(t=>'#'+t).join(' ')}` : '';
-    const desc = [`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`, `🍅 ${task.pomos||1}×25m`, task.proj_name?`Project: ${task.proj_name}`:'', tags, '\n— FaheemFlow'].filter(Boolean).join('\n');
+    const desc = [`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`, `🍅 ${task.pomos||1}×25m`, task.proj_name?`Project: ${task.proj_name}`:'', tags, '\\n\u2014 FaheemFlow'].filter(Boolean).join('\\n');
     const event = { summary: task.name, description: desc, start:{date:task.due_date}, end:{date:task.due_date}, colorId: task.priority===1?'11':task.priority===2?'6':'1' };
     try {
       if (task.gcal_event_id) { await cal.events.update({calendarId:'primary',eventId:task.gcal_event_id,requestBody:event}); results.updated++; }
@@ -320,9 +320,7 @@ app.post('/api/sync/all', requireAuth, async (req, res) => {
     try {
       const tasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.due_date IS NOT NULL AND t.is_done=0 AND t.parent_id IS NULL').all(req.session.userId).map(parseTask);
       let created=0,updated=0;
-      for(const task of tasks){const tags=(task.tags||[]).length?`Tags: ${task.tags.map(t=>'#'+t).join(' ')}`:'';const desc=[`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`,`🍅 ${task.pomos||1}×25m`,task.proj_name?`Project: ${task.proj_name}`:'',tags,'
-— FaheemFlow'].filter(Boolean).join('
-');const event={summary:task.name,description:desc,start:{date:task.due_date},end:{date:task.due_date},colorId:task.priority===1?'11':task.priority===2?'6':'1'};try{if(task.gcal_event_id){await cal.events.update({calendarId:'primary',eventId:task.gcal_event_id,requestBody:event});updated++;}else{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}}catch(err){if(err.code===404||err.code===410){try{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}catch(e){}}}}
+      for(const task of tasks){const tags=(task.tags||[]).length?`Tags: ${task.tags.map(t=>'#'+t).join(' ')}`:'';const desc=[`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`,`🍅 ${task.pomos||1}×25m`,task.proj_name?`Project: ${task.proj_name}`:'',tags,'— FaheemFlow'].filter(Boolean).join('\n');const event={summary:task.name,description:desc,start:{date:task.due_date},end:{date:task.due_date},colorId:task.priority===1?'11':task.priority===2?'6':'1'};try{if(task.gcal_event_id){await cal.events.update({calendarId:'primary',eventId:task.gcal_event_id,requestBody:event});updated++;}else{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}}catch(err){if(err.code===404||err.code===410){try{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}catch(e){}}}}
       results.gcal = { created, updated };
     } catch(e) { results.gcal = { error: e.message }; }
   }
