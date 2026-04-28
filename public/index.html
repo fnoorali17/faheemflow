@@ -174,6 +174,7 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
 .tdbadge{font-size:10px;padding:2px 6px;border-radius:20px;font-weight:600;border:1px solid}
 .gcal-badge{background:var(--gbg);color:var(--green);border-color:#a7f3d0}
 .td-badge{background:#fff0f0;color:#e02d3c;border-color:#fbb6b6}
+.tt-badge{background:#fff8e1;color:#e65100;border-color:#ffcc80}
 .pip{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .tbtns{display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px}
 .tbt{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;color:var(--t2);font-size:13px;flex-shrink:0}
@@ -465,8 +466,7 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
         </div>
       </div>
       <div class="tbr">
-        <button class="syncbtn" id="gcbtn" onclick="syncGCal()">🗓 <span id="gclbl">Sync Cal</span></button>
-        <button class="syncbtn" id="tdbtn" onclick="syncTodoist()">✓ <span id="tdlbl">Sync Todoist</span></button>
+        <button class="syncbtn vis" id="syncallbtn" onclick="syncAll()">⟳ <span id="syncalllbl">Sync All</span></button>
         <button class="bsm bcnl" id="imp-btn" style="display:none" onclick="openImp()">⬇ Import</button>
         <button class="bpri" id="add-btn" onclick="openAdd()">+ Add task</button>
       </div>
@@ -623,26 +623,26 @@ async function loadAll(){
 }
 
 // ── SYNC STATUS ───────────────────────────────────────────────
-async function checkSyncStatus(){
-  try{
-    const [gc,td_]=await Promise.all([GET('/gcal/status'),GET('/todoist/status')]);
-    const gb=document.getElementById('gcbtn'),tdb=document.getElementById('tdbtn');
-    gb.classList.add('vis');
-    if(!gc.configured){gb.classList.add('uncfg');document.getElementById('gclbl').textContent='Set up Cal';}
-    tdb.classList.add('vis');
-    if(!td_.configured){tdb.classList.add('uncfg');document.getElementById('tdlbl').textContent='Set up Todoist';}
-  }catch(e){}
-}
+async function checkSyncStatus(){ /* handled by syncAll */ }
 
-async function syncGCal(){
-  const btn=document.getElementById('gcbtn'),lbl=document.getElementById('gclbl');
+async function syncAll(){
+  const btn=document.getElementById('syncallbtn'),lbl=document.getElementById('syncalllbl');
   btn.classList.add('loading');lbl.textContent='Syncing…';
   try{
-    const r=await POST('/gcal/sync',{});
-    btn.classList.remove('loading','errbtn','uncfg');
-    if(r.error){btn.classList.add('errbtn');lbl.textContent='Setup needed';toast('⚠ '+r.error,5000);}
-    else{btn.classList.add('synced');lbl.textContent=`✓ ${r.created+r.updated} synced`;toast(`Google Cal: ${r.created} added, ${r.updated} updated`);setTimeout(()=>{btn.classList.remove('synced');lbl.textContent='Sync Cal';},4000);}
-  }catch(e){btn.classList.remove('loading');btn.classList.add('errbtn');lbl.textContent='Sync failed';}
+    const r=await POST('/sync/all',{});
+    btn.classList.remove('loading','errbtn');
+    const parts=[];
+    if(r.todoist&&!r.todoist.error)parts.push(`Todoist: ${r.todoist.pushed} pushed, ${r.todoist.pulled} pulled`);
+    else if(r.todoist&&r.todoist.error)parts.push('Todoist: '+r.todoist.error);
+    if(r.ticktick&&!r.ticktick.error)parts.push(`TickTick: ${r.ticktick.pushed||0} pushed, ${r.ticktick.pulled||0} pulled`);
+    else if(r.ticktick&&r.ticktick.error)parts.push('TickTick: '+r.ticktick.error);
+    if(r.gcal&&!r.gcal.error)parts.push(`Cal: ${r.gcal.created} added, ${r.gcal.updated} updated`);
+    else if(r.gcal&&r.gcal.error)parts.push('Cal: '+r.gcal.error);
+    btn.classList.add('synced');lbl.textContent='✓ Synced';
+    toast(parts.join(' · ')||'Sync complete');
+    await loadAll();
+    setTimeout(()=>{btn.classList.remove('synced');lbl.textContent='Sync All';},4000);
+  }catch(e){btn.classList.remove('loading');btn.classList.add('errbtn');lbl.textContent='Sync failed';toast('Sync failed: '+e.message);}
 }
 
 async function syncTodoist(){

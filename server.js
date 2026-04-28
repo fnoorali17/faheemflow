@@ -46,7 +46,7 @@ db.exec(`
     tags TEXT DEFAULT '[]', is_done INTEGER DEFAULT 0,
     is_urgent INTEGER DEFAULT 0, is_important INTEGER DEFAULT 0,
     pomos INTEGER DEFAULT 1, today_pick INTEGER DEFAULT 0,
-    gcal_event_id TEXT, todoist_task_id TEXT,
+    gcal_event_id TEXT, todoist_task_id TEXT, ticktick_task_id TEXT,
     sort_order INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS habits (
@@ -208,6 +208,125 @@ app.post('/api/todoist/sync', requireAuth, async (req, res) => {
     }
     res.json({ ok: true, pushed, pulled });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// TICKTICK
+async function ttReq(method, path, body) {
+  const token = process.env.TICKTICK_ACCESS_TOKEN;
+  if (!token) throw new Error('TICKTICK_ACCESS_TOKEN not set');
+  const r = await fetch(`https://ticktick.com/open/v1${path}`, {
+    method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (r.status === 204) return null;
+  if (!r.ok) throw new Error(`TickTick ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+app.get('/api/ticktick/status', requireAuth, (req, res) => res.json({ configured: !!process.env.TICKTICK_ACCESS_TOKEN }));
+app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    // Get TickTick projects and tasks
+    const ttProjects = await ttReq('GET', '/project');
+    const ttProjByName = Object.fromEntries((ttProjects||[]).map(p => [p.name.toLowerCase(), p.id]));
+    const ttProjById = Object.fromEntries((ttProjects||[]).map(p => [p.id, p.name]));
+    let pushed = 0, pulled = 0;
+    // Push FaheemFlow → TickTick
+    const localTasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0').all(userId).map(parseTask);
+    for (const task of localTasks) {
+      let ttProjId = null;
+      if (task.proj_name) {
+        ttProjId = ttProjByName[task.proj_name.toLowerCase()];
+        if (!ttProjId) {
+          try { const np = await ttReq('POST', '/project', { name: task.proj_name }); ttProjId = np.id; ttProjByName[task.proj_name.toLowerCase()] = ttProjId; } catch(e) {}
+        }
+      }
+      const pri = task.priority===1?5:task.priority===2?3:task.priority===3?1:0;
+      const payload = { title: task.name, priority: pri, projectId: ttProjId||undefined, dueDate: task.due_date ? task.due_date+'T00:00:00+0000' : undefined, tags: task.tags||[], content: `🍅 ${task.pomos||1}×25m | FaheemFlow` };
+      if (task.ticktick_task_id) {
+        try { await ttReq('POST', `/task/${task.ticktick_task_id}`, {...payload, id: task.ticktick_task_id}); pushed++; }
+        catch(e) {
+          if (e.message.includes('404')||e.message.includes('400')) {
+            try { const nc = await ttReq('POST', '/task', payload); db.prepare('UPDATE tasks SET ticktick_task_id=? WHERE id=?').run(nc.id, task.id); pushed++; } catch(e2) {}
+          }
+        }
+      } else {
+        try { const nc = await ttReq('POST', '/task', payload); db.prepare('UPDATE tasks SET ticktick_task_id=? WHERE id=?').run(nc.id, task.id); pushed++; } catch(e) {}
+      }
+    }
+    // Pull TickTick → FaheemFlow
+    const existingTtIds = new Set(db.prepare('SELECT ticktick_task_id FROM tasks WHERE user_id=? AND ticktick_task_id IS NOT NULL').all(userId).map(r=>r.ticktick_task_id));
+    for (const proj of (ttProjects||[])) {
+      try {
+        const projData = await ttReq('GET', `/project/${proj.id}/data`);
+        const ttTasks = projData.tasks || [];
+        for (const ttt of ttTasks) {
+          if (existingTtIds.has(ttt.id) || ttt.status===2) continue;
+          let localProjId = null;
+          if (ttt.projectId && ttProjById[ttt.projectId]) {
+            const pname = ttProjById[ttt.projectId];
+            let lp = db.prepare('SELECT id FROM projects WHERE user_id=? AND name=?').get(userId, pname);
+            if (!lp) { const nid=uid(); db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(nid,userId,pname,'#6b7280',99); localProjId=nid; }
+            else localProjId = lp.id;
+          }
+          const pri = ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
+          const dueDate = ttt.dueDate ? ttt.dueDate.slice(0,10) : null;
+          db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,due_date,priority,project_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,dueDate,pri,localProjId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
+          pulled++;
+        }
+      } catch(e) {}
+    }
+    res.json({ ok: true, pushed, pulled });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SYNC ALL (Todoist + TickTick + GCal)
+app.post('/api/sync/all', requireAuth, async (req, res) => {
+  const results = { todoist: null, ticktick: null, gcal: null };
+  // Todoist
+  if (process.env.TODOIST_API_TOKEN) {
+    try {
+      const userId = req.session.userId;
+      const [tdProjects, tdTasks] = await Promise.all([tdReq('GET','/projects'), tdReq('GET','/tasks')]);
+      const tdProjByName = Object.fromEntries(tdProjects.map(p => [p.name.toLowerCase(), p.id]));
+      const tdProjById = Object.fromEntries(tdProjects.map(p => [p.id, p.name]));
+      let pushed=0,pulled=0;
+      const localTasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL').all(userId).map(parseTask);
+      for (const task of localTasks) {
+        let tdProjId=null;
+        if (task.proj_name) { tdProjId=tdProjByName[task.proj_name.toLowerCase()]; if(!tdProjId){const np=await tdReq('POST','/projects',{name:task.proj_name});tdProjId=np.id;tdProjByName[task.proj_name.toLowerCase()]=tdProjId;db.prepare('UPDATE projects SET todoist_project_id=? WHERE user_id=? AND name=?').run(tdProjId,userId,task.proj_name);} }
+        const payload={content:task.name,due_date:task.due_date||undefined,priority:task.priority===1?4:task.priority===2?3:task.priority===3?2:1,project_id:tdProjId||undefined,labels:task.tags||[],description:`🍅 ${task.pomos||1}×25m | FaheemFlow`};
+        if(task.is_done&&task.todoist_task_id){try{await tdReq('POST',`/tasks/${task.todoist_task_id}/close`);}catch(e){}continue;}
+        if(task.todoist_task_id){try{await tdReq('POST',`/tasks/${task.todoist_task_id}`,payload);pushed++;}catch(e){if(e.message.includes('404')){const nc=await tdReq('POST','/tasks',payload);db.prepare('UPDATE tasks SET todoist_task_id=? WHERE id=?').run(nc.id,task.id);pushed++;}}}
+        else if(!task.is_done){const nc=await tdReq('POST','/tasks',payload);db.prepare('UPDATE tasks SET todoist_task_id=? WHERE id=?').run(nc.id,task.id);pushed++;}
+      }
+      const existingTdIds=new Set(db.prepare('SELECT todoist_task_id FROM tasks WHERE user_id=? AND todoist_task_id IS NOT NULL').all(userId).map(r=>r.todoist_task_id));
+      for(const tdt of tdTasks){if(existingTdIds.has(tdt.id))continue;let localProjId=null;if(tdt.project_id&&tdProjById[tdt.project_id]){const pname=tdProjById[tdt.project_id];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND name=?').get(userId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,todoist_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',tdt.project_id,99);localProjId=nid;}else localProjId=lp.id;}const pri=tdt.priority===4?1:tdt.priority===3?2:tdt.priority===2?3:4;db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,due_date,priority,project_id,tags,is_done,pomos,todoist_task_id) VALUES (?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,tdt.content,tdt.due?.date||null,pri,localProjId,JSON.stringify(tdt.labels||[]),0,1,tdt.id);pulled++;}
+      results.todoist = { pushed, pulled };
+    } catch(e) { results.todoist = { error: e.message }; }
+  }
+  // TickTick
+  if (process.env.TICKTICK_ACCESS_TOKEN) {
+    try {
+      const syncReq = { headers: { host: req.headers.host }, session: req.session };
+      const ttRes = await fetch(`http://localhost:${process.env.PORT||3000}/api/ticktick/sync`, { method:'POST', headers:{'Content-Type':'application/json','Cookie':req.headers.cookie||''} });
+      results.ticktick = await ttRes.json();
+    } catch(e) { results.ticktick = { error: e.message }; }
+  }
+  // GCal
+  const cal = getGCal();
+  if (cal) {
+    try {
+      const tasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.due_date IS NOT NULL AND t.is_done=0 AND t.parent_id IS NULL').all(req.session.userId).map(parseTask);
+      let created=0,updated=0;
+      for(const task of tasks){const tags=(task.tags||[]).length?`Tags: ${task.tags.map(t=>'#'+t).join(' ')}`:'';const desc=[`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`,`🍅 ${task.pomos||1}×25m`,task.proj_name?`Project: ${task.proj_name}`:'',tags,'
+— FaheemFlow'].filter(Boolean).join('
+');const event={summary:task.name,description:desc,start:{date:task.due_date},end:{date:task.due_date},colorId:task.priority===1?'11':task.priority===2?'6':'1'};try{if(task.gcal_event_id){await cal.events.update({calendarId:'primary',eventId:task.gcal_event_id,requestBody:event});updated++;}else{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}}catch(err){if(err.code===404||err.code===410){try{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);created++;}catch(e){}}}}
+      results.gcal = { created, updated };
+    } catch(e) { results.gcal = { error: e.message }; }
+  }
+  res.json({ ok: true, ...results });
 });
 
 // PROJECTS
