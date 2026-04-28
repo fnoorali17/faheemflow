@@ -980,7 +980,7 @@ function renderMatrix(){
     const def=QDEFS[qk],tklist=byQ[qk];
     const cards=tklist.length?tklist.map(tk=>{
       const lbl=fmtD(tk.due_date),isOv=tk.due_date&&tk.due_date<t,isToday=tk.due_date===t;
-      return`<div class="mxcard${tk.is_done?' done':''}" id="mxc-${tk.id}" draggable="true" ondragstart="onDragStart(event,'${tk.id}','${qk}')" ondragend="onDragEnd(event)">
+      return`<div class="mxcard${tk.is_done?' done':''}" id="mxc-${tk.id}">
         <div class="mxchk" onclick="togDone('${tk.id}')">${tk.is_done?`<svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div>
         <div style="flex:1;min-width:0"><div class="mxnm">${tk.name}</div>${lbl?`<div class="mxdue${isOv?' ov':isToday?' tod':''}">Due: ${lbl}</div>`:''}</div>
         <div class="mxbts"><div class="mxbt" onclick="startEdit('${tk.id}')">✎</div><div class="mxbt del" onclick="delTask('${tk.id}')">🗑</div></div>
@@ -995,36 +995,67 @@ function renderMatrix(){
     <div class="mxax"><span class="mxax-s">IMPORTANT</span></div>${mkQ('q1')}${mkQ('q2')}
     <div class="mxax"><span class="mxax-s">NOT IMPORTANT</span></div>${mkQ('q3')}${mkQ('q4')}
   </div></div>`;
+  setTimeout(initMatrixDrag,0);
 }
-function onDragStart(e,id,originQ){
-  dragId=id;dragOriginQ=originQ;
-  const tk=tasks.find(t=>t.id===id),ghost=document.getElementById('drag-ghost');
-  ghost.textContent=tk?.name||'Task';ghost.style.display='block';
-  ghost.style.left=e.clientX+12+'px';ghost.style.top=e.clientY-20+'px';
-  e.dataTransfer.effectAllowed='move';e.dataTransfer.setDragImage(new Image(),0,0);
-  setTimeout(()=>document.getElementById('mxc-'+id)?.classList.add('dragging'),0);
-  document.addEventListener('dragover',moveGhost);
+// Pointer drag — works on mouse, touch, trackpad
+let dragEl=null,dragClone=null,dragOffX=0,dragOffY=0;
+
+function initMatrixDrag(){
+  document.querySelectorAll('.mxcard').forEach(card=>{
+    card.addEventListener('pointerdown',startDrag,{passive:false});
+  });
 }
-function moveGhost(e){const g=document.getElementById('drag-ghost');g.style.left=e.clientX+12+'px';g.style.top=e.clientY-20+'px';}
-function onDragEnd(){
-  document.getElementById('drag-ghost').style.display='none';
-  document.removeEventListener('dragover',moveGhost);
-  document.getElementById('mxc-'+dragId)?.classList.remove('dragging');
+function startDrag(e){
+  if(e.target.closest('.mxchk,.mxbt'))return;
+  e.preventDefault();
+  dragEl=e.currentTarget;
+  dragId=dragEl.id.replace('mxc-','');
+  dragOriginQ=dragEl.closest('.mxq')?.id?.replace('mxq-','');
+  const rect=dragEl.getBoundingClientRect();
+  dragOffX=e.clientX-rect.left;dragOffY=e.clientY-rect.top;
+  dragClone=dragEl.cloneNode(true);
+  dragClone.style.cssText='position:fixed;z-index:9999;width:'+rect.width+'px;opacity:0.88;transform:rotate(2deg);pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.18);border:1.5px solid var(--accent);border-radius:var(--r);left:'+rect.left+'px;top:'+rect.top+'px;transition:none;background:var(--surface);padding:8px 10px;font-family:var(--font);';
+  document.body.appendChild(dragClone);
+  dragEl.classList.add('dragging');
+  document.addEventListener('pointermove',moveDrag,{passive:false});
+  document.addEventListener('pointerup',endDrag);
+  document.addEventListener('pointercancel',endDrag);
+}
+function moveDrag(e){
+  if(!dragClone)return;
+  e.preventDefault();
+  dragClone.style.left=(e.clientX-dragOffX)+'px';
+  dragClone.style.top=(e.clientY-dragOffY)+'px';
+  dragClone.style.display='none';
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  dragClone.style.display='';
+  const qBody=el?.closest('.mxbody');
   ['q1','q2','q3','q4'].forEach(q=>document.getElementById('mxb-'+q)?.classList.remove('dragover'));
+  if(qBody)qBody.classList.add('dragover');
 }
-function onDragOver(e,qk){e.preventDefault();e.dataTransfer.dropEffect='move';document.getElementById('mxb-'+qk)?.classList.add('dragover');}
-function onDragLeave(e,qk){document.getElementById('mxb-'+qk)?.classList.remove('dragover');}
-async function onDrop(e,qk){
-  e.preventDefault();document.getElementById('mxb-'+qk)?.classList.remove('dragover');
-  if(!dragId||qk===dragOriginQ){dragId=null;dragOriginQ=null;return;}
-  const tk=tasks.find(t=>t.id===dragId);if(!tk){dragId=null;return;}
+async function endDrag(e){
+  if(!dragClone)return;
+  document.removeEventListener('pointermove',moveDrag);
+  document.removeEventListener('pointerup',endDrag);
+  document.removeEventListener('pointercancel',endDrag);
+  dragClone.style.display='none';
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  dragClone.style.display='';
+  const qBody=el?.closest('.mxbody');
+  const qk=qBody?.id?.replace('mxb-','');
+  dragClone.remove();dragClone=null;
+  dragEl?.classList.remove('dragging');
+  ['q1','q2','q3','q4'].forEach(q=>document.getElementById('mxb-'+q)?.classList.remove('dragover'));
+  const savedId=dragId,savedOrigin=dragOriginQ;
+  dragId=null;dragOriginQ=null;dragEl=null;
+  if(!qk||!savedId||qk===savedOrigin)return;
+  const tk=tasks.find(t=>t.id===savedId);if(!tk)return;
   const def=QDEFS[qk];tk.is_urgent=def.urgent;tk.is_important=def.important;
-  const tid=dragId;dragId=null;dragOriginQ=null;
   renderMatrix();
-  setTimeout(()=>{const c=document.getElementById('mxc-'+tid);if(c){c.classList.add('landed');setTimeout(()=>c.classList.remove('landed'),400);}},20);
+  setTimeout(()=>{const c=document.getElementById('mxc-'+savedId);if(c){c.classList.add('landed');setTimeout(()=>c.classList.remove('landed'),400);}},20);
   const qNames={q1:'Do First',q2:'Schedule',q3:'Delegate',q4:'Eliminate'};
-  toast(`Moved to "${qNames[qk]}" — ${def.urgent?'Urgent':'Not Urgent'}, ${def.important?'Important':'Not Important'}`);
-  await PATCH('/tasks/'+tk.id,{is_urgent:def.urgent,is_important:def.important});
+  toast('Moved to "'+qNames[qk]+'" — '+(def.urgent?'Urgent':'Not Urgent')+', '+(def.important?'Important':'Not Important'));
+  await PATCH('/tasks/'+savedId,{is_urgent:def.urgent,is_important:def.important});
 }
 
 // ── PLAN VIEW ─────────────────────────────────────────────────
