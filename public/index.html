@@ -905,12 +905,12 @@ async function checkAuth(){
   const params=new URLSearchParams(window.location.search);
   if(params.get('reset')){
     resetToken=params.get('reset');
-    history.replaceState({},'','/');
+    history.replaceState({},'','/login');
     document.getElementById('login-page').style.display='flex';document.getElementById('app-page').style.display='none';
     document.getElementById('login-form-wrap').style.display='none';document.getElementById('forgot-form-wrap').style.display='none';document.getElementById('reset-form-wrap').style.display='';
     return;
   }
-  if(params.get('error')){toast('Sign in failed. Please try again.');history.replaceState({},'','/');}
+  if(params.get('error')){toast('Sign in failed. Please try again.');history.replaceState({},'','/login');}
   if(params.get('settings')){setTimeout(()=>setV('settings',document.querySelector('.vset')),500);}
   try{
     const r=await fetch('/api/auth/me');

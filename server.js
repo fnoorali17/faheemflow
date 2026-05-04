@@ -207,7 +207,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     }
     req.session.userId = user.id;
     req.session.check_rollover = true;
-    res.redirect(isNew ? '/?settings=1' : '/');
+    res.redirect(isNew ? '/login?settings=1' : '/login');
   } catch(e) { console.error('Google OAuth error:', e.message); res.redirect('/login?error=oauth_failed'); }
 });
 
@@ -353,8 +353,8 @@ app.get('/api/gcal/callback', async (req, res) => {
     const { tokens } = await auth.getToken(code);
     const refreshToken = tokens.refresh_token || tokens.access_token;
     db.prepare('UPDATE users SET gcal_refresh_token=?, gcal_connected=1 WHERE id=?').run(refreshToken, req.session.userId);
-    res.redirect('/?settings=1&gcal=connected');
-  } catch(e) { console.error('GCal callback error:', e.message); res.redirect('/?settings=1&error=gcal_failed'); }
+    res.redirect('/login?settings=1&gcal=connected');
+  } catch(e) { console.error('GCal callback error:', e.message); res.redirect('/login?settings=1&error=gcal_failed'); }
 });
 
 app.get('/api/gcal/calendars', requireAuth, async (req, res) => {
@@ -628,14 +628,8 @@ app.post('/api/waitlist', (req, res) => {
 });
 
 // ROUTING
-// / → landing for guests, app for logged-in users
-app.get('/', (req, res) => {
-  if (req.session.userId) {
-    const user = db.prepare('SELECT id FROM users WHERE id=?').get(req.session.userId);
-    if (user) return res.sendFile(path.join(__dirname,'public','index.html'));
-  }
-  res.sendFile(path.join(__dirname,'public','landing.html'));
-});
+// / → always landing page
+app.get('/', (req, res) => res.sendFile(path.join(__dirname,'public','landing.html')));
 // /login → always serve the app shell (handles ?reset= and other URL params)
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
 // Everything else → app (handles /?reset=token, /?settings=1, etc.)
