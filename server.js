@@ -629,7 +629,11 @@ app.post('/api/waitlist', (req, res) => {
 
 // ROUTING
 // / → always landing page
-app.get('/', (req, res) => res.sendFile(path.join(__dirname,'public','landing.html')));
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(path.join(__dirname,'public','landing.html'));
+});
 // /login → always serve the app shell (handles ?reset= and other URL params)
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
 // Everything else → app (handles /?reset=token, /?settings=1, etc.)
