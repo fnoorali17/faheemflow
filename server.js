@@ -611,6 +611,13 @@ app.post('/api/habits/:id/log', requireAuth, (req, res) => {
   res.json({ok:true});
 });
 
+// ADMIN: view waitlist
+app.get('/admin/waitlist', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  const rows = db.prepare('SELECT email, created_at FROM waitlist ORDER BY created_at DESC').all();
+  res.json({ count: rows.length, emails: rows });
+});
+
 // WAITLIST
 db.exec(`CREATE TABLE IF NOT EXISTS waitlist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
