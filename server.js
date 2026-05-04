@@ -15,13 +15,16 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-change-me';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'session-change-me';
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const GCAL_CLIENT_ID = process.env.GCAL_CLIENT_ID || '';
-const GCAL_CLIENT_SECRET = process.env.GCAL_CLIENT_SECRET || '';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'hello@send.irada.work';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.GCAL_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || process.env.GCAL_CLIENT_SECRET || '';
+const GCAL_CLIENT_ID = GOOGLE_CLIENT_ID;
+const GCAL_CLIENT_SECRET = GOOGLE_CLIENT_SECRET;
 
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-const db = new Database(path.join(dataDir, 'faheemflow.db'));
+const db = new Database(path.join(dataDir, 'irada.db'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -31,12 +34,14 @@ db.exec(`
     password_hash TEXT, name TEXT NOT NULL,
     google_id TEXT, todoist_token TEXT, ticktick_token TEXT,
     gcal_refresh_token TEXT, gcal_connected INTEGER DEFAULT 0,
-    reset_token TEXT, reset_expires TEXT,
+    selected_calendars TEXT DEFAULT '[]',
+    reset_token TEXT, reset_token_expires TEXT,
+    last_login_date TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#3b82f6',
+    name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#c4922a',
     todoist_project_id TEXT, sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
   );
@@ -70,14 +75,19 @@ db.exec(`
 `);
 
 // Migrations for existing databases
-['ALTER TABLE users ADD COLUMN google_id TEXT',
- 'ALTER TABLE users ADD COLUMN todoist_token TEXT',
- 'ALTER TABLE users ADD COLUMN ticktick_token TEXT',
- 'ALTER TABLE users ADD COLUMN gcal_refresh_token TEXT',
- 'ALTER TABLE users ADD COLUMN gcal_connected INTEGER DEFAULT 0',
- 'ALTER TABLE users ADD COLUMN reset_token TEXT',
- 'ALTER TABLE users ADD COLUMN reset_expires TEXT',
- 'ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ""',
+[
+  'ALTER TABLE users ADD COLUMN google_id TEXT',
+  'ALTER TABLE users ADD COLUMN todoist_token TEXT',
+  'ALTER TABLE users ADD COLUMN ticktick_token TEXT',
+  'ALTER TABLE users ADD COLUMN gcal_refresh_token TEXT',
+  'ALTER TABLE users ADD COLUMN gcal_connected INTEGER DEFAULT 0',
+  'ALTER TABLE users ADD COLUMN selected_calendars TEXT DEFAULT \'[]\'',
+  'ALTER TABLE users ADD COLUMN reset_token TEXT',
+  'ALTER TABLE users ADD COLUMN reset_token_expires TEXT',
+  'ALTER TABLE users ADD COLUMN reset_expires TEXT',
+  'ALTER TABLE users ADD COLUMN last_login_date TEXT',
+  'ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ""',
+  'ALTER TABLE tasks ADD COLUMN ticktick_task_id TEXT',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
 app.use(cors());
@@ -94,6 +104,7 @@ const requireAuth = (req, res, next) => {
   next();
 };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const today = () => new Date().toISOString().slice(0, 10);
 const parseTask = row => ({
   ...row, tags: JSON.parse(row.tags || '[]'),
   is_done: !!row.is_done, is_urgent: !!row.is_urgent,
@@ -108,7 +119,7 @@ async function sendEmail(to, subject, html) {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'FaheemFlow <noreply@faheemflow.app>', to, subject, html })
+      body: JSON.stringify({ from: `Irada <${FROM_EMAIL}>`, to, subject, html })
     });
     return r.ok;
   } catch(e) { console.error('Email error:', e.message); return false; }
@@ -123,55 +134,78 @@ app.post('/api/auth/login', async (req, res) => {
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
   req.session.userId = user.id;
+  // Mark for rollover check on next /me call
+  req.session.check_rollover = true;
   res.json({ ok: true, name: user.name, email: user.email });
 });
+
 app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ ok: true }); });
+
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not authenticated' });
-  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token FROM users WHERE id=?').get(req.session.userId);
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.session.userId);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  res.json({ ...user, gcal_connected: !!user.gcal_connected, has_todoist: !!user.todoist_token, has_ticktick: !!user.ticktick_token });
+
+  const todayStr = today();
+  let needs_rollover = false;
+  let incomplete_today_tasks = [];
+
+  // Rollover check: new day since last login
+  if (req.session.check_rollover || (user.last_login_date && user.last_login_date !== todayStr)) {
+    needs_rollover = true;
+    incomplete_today_tasks = db.prepare(
+      'SELECT * FROM tasks WHERE user_id=? AND today_pick=1 AND is_done=0 AND parent_id IS NULL'
+    ).all(req.session.userId).map(parseTask);
+  }
+  // Update last_login_date to today
+  db.prepare('UPDATE users SET last_login_date=? WHERE id=?').run(todayStr, req.session.userId);
+  req.session.check_rollover = false;
+
+  res.json({
+    id: user.id, name: user.name, email: user.email,
+    gcal_connected: !!user.gcal_connected,
+    has_todoist: !!user.todoist_token,
+    has_ticktick: !!user.ticktick_token,
+    selected_calendars: JSON.parse(user.selected_calendars || '[]'),
+    needs_rollover,
+    incomplete_today_tasks,
+  });
 });
 
 // AUTH: GOOGLE SSO
-function getGoogleOAuth(redirectPath) {
-  return new google.auth.OAuth2(GCAL_CLIENT_ID, GCAL_CLIENT_SECRET, `${APP_URL}/api/auth/google/callback`);
+function getGoogleOAuth() {
+  return new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, `${APP_URL}/api/auth/google/callback`);
 }
 app.get('/api/auth/google', (req, res) => {
-  if (!GCAL_CLIENT_ID) return res.status(400).send('Google OAuth not configured');
+  if (!GOOGLE_CLIENT_ID) return res.status(400).send('Google OAuth not configured');
   const auth = getGoogleOAuth();
-  const state = req.query.mode || 'login';
-  const scopes = state === 'calendar'
-    ? ['https://www.googleapis.com/auth/calendar']
-    : ['https://www.googleapis.com/auth/userinfo.email','https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/calendar'];
-  const url = auth.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: scopes, state });
+  const scopes = ['https://www.googleapis.com/auth/userinfo.email','https://www.googleapis.com/auth/userinfo.profile'];
+  const url = auth.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: scopes });
   res.redirect(url);
 });
 app.get('/api/auth/google/callback', async (req, res) => {
-  const { code, state } = req.query;
+  const { code } = req.query;
   if (!code) return res.redirect('/?error=oauth_failed');
   try {
     const auth = getGoogleOAuth();
     const { tokens } = await auth.getToken(code);
     auth.setCredentials(tokens);
-    if (state === 'calendar' && req.session.userId) {
-      db.prepare('UPDATE users SET gcal_refresh_token=?, gcal_connected=1 WHERE id=?').run(tokens.refresh_token || tokens.access_token, req.session.userId);
-      return res.redirect('/?settings=1&gcal=connected');
-    }
     const oauth2 = google.oauth2({ version: 'v2', auth });
     const { data: profile } = await oauth2.userinfo.get();
     const email = profile.email.toLowerCase();
     let user = db.prepare('SELECT * FROM users WHERE email=? OR google_id=?').get(email, profile.id);
+    const isNew = !user;
     if (!user) {
       const id = uid();
-      db.prepare('INSERT INTO users (id,email,password_hash,name,google_id,gcal_refresh_token,gcal_connected) VALUES (?,?,?,?,?,?,?)').run(id, email, '', profile.name, profile.id, tokens.refresh_token || '', tokens.refresh_token ? 1 : 0);
+      db.prepare('INSERT INTO users (id,email,password_hash,name,google_id) VALUES (?,?,?,?,?)').run(id, email, '', profile.name, profile.id);
       try { seedUser(id); } catch(e) {}
       user = db.prepare('SELECT * FROM users WHERE id=?').get(id);
     } else {
-      db.prepare('UPDATE users SET google_id=COALESCE(google_id,?), gcal_refresh_token=COALESCE(?,gcal_refresh_token), gcal_connected=1 WHERE id=?').run(profile.id, tokens.refresh_token || null, user.id);
+      db.prepare('UPDATE users SET google_id=COALESCE(google_id,?) WHERE id=?').run(profile.id, user.id);
     }
     req.session.userId = user.id;
-    res.redirect('/');
+    req.session.check_rollover = true;
+    res.redirect(isNew ? '/?settings=1' : '/');
   } catch(e) { console.error('Google OAuth error:', e.message); res.redirect('/?error=oauth_failed'); }
 });
 
@@ -183,15 +217,17 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   if (user && user.password_hash) {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000).toISOString();
-    db.prepare('UPDATE users SET reset_token=?, reset_expires=? WHERE id=?').run(token, expires, user.id);
+    db.prepare('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?').run(token, expires, user.id);
     const resetUrl = `${APP_URL}/?reset=${token}`;
-    await sendEmail(user.email, 'Reset your FaheemFlow password',
-      `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f7f6f3">
-        <div style="background:#fff;border-radius:12px;padding:28px;border:1.5px solid #e2dfd8">
-          <h2 style="font-family:Georgia,serif;color:#2d2c2a;margin:0 0 12px">Reset your password</h2>
-          <p style="color:#6b6860;margin:0 0 20px;line-height:1.6">Click below to reset your FaheemFlow password. This link expires in 1 hour.</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#3b6fd4;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-family:sans-serif">Reset Password</a>
-          <p style="color:#a8a59e;font-size:12px;margin-top:24px;margin-bottom:0">If you didn't request this, ignore this email.</p>
+    await sendEmail(user.email, 'Reset your Irada password',
+      `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1a1714">
+        <div style="background:#23211e;border-radius:12px;padding:28px;border:1px solid rgba(196,146,42,0.2)">
+          <div style="font-family:Georgia,serif;font-size:24px;color:#f5f0e8;margin:0 0 4px">Irad<em style="font-style:italic;color:#e8b84b">a</em></div>
+          <div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#7a7168;margin:0 0 24px">Direct your will</div>
+          <h2 style="font-family:Georgia,serif;color:#f5f0e8;margin:0 0 12px;font-weight:400">Reset your password</h2>
+          <p style="color:#7a7168;margin:0 0 20px;line-height:1.6">Click below to reset your Irada password. This link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display:inline-block;background:#c4922a;color:#1a1714;padding:12px 24px;border-radius:2px;text-decoration:none;font-weight:600;font-size:13px;letter-spacing:0.06em;text-transform:uppercase">Reset Password</a>
+          <p style="color:#7a7168;font-size:12px;margin-top:24px;margin-bottom:0">If you didn't request this, ignore this email.</p>
         </div>
       </div>`
     );
@@ -202,9 +238,10 @@ app.post('/api/auth/reset-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' });
   const user = db.prepare('SELECT * FROM users WHERE reset_token=?').get(token);
-  if (!user || !user.reset_expires || new Date(user.reset_expires) < new Date()) return res.status(400).json({ error: 'Invalid or expired reset link' });
+  const expires = user?.reset_token_expires || user?.reset_expires;
+  if (!user || !expires || new Date(expires) < new Date()) return res.status(400).json({ error: 'Invalid or expired reset link' });
   const hash = await bcrypt.hash(password, 12);
-  db.prepare('UPDATE users SET password_hash=?, reset_token=NULL, reset_expires=NULL WHERE id=?').run(hash, user.id);
+  db.prepare('UPDATE users SET password_hash=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?').run(hash, user.id);
   res.json({ ok: true });
 });
 
@@ -225,14 +262,14 @@ app.post('/admin/create-user', async (req, res) => {
 function seedUser(id) {
   db.pragma('foreign_keys = OFF');
   const p1=uid(),p2=uid(),s1=uid(),s2=uid(),s3=uid(),s4=uid(),s5=uid();
-  const today=new Date().toISOString().slice(0,10);
+  const todayStr=new Date().toISOString().slice(0,10);
   const nxt=d=>new Date(Date.now()+d*86400000).toISOString().slice(0,10);
   db.prepare('INSERT OR IGNORE INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p1,id,'Work','#8b5cf6',0);
-  db.prepare('INSERT OR IGNORE INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p2,id,'Personal','#3b82f6',1);
+  db.prepare('INSERT OR IGNORE INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(p2,id,'Personal','#c4922a',1);
   [s1,s2,s3].forEach((s,i)=>db.prepare('INSERT OR IGNORE INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s,p1,id,['In Progress','This Week','Backlog'][i],i));
   [s4,s5].forEach((s,i)=>db.prepare('INSERT OR IGNORE INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(s,p2,id,['Errands','Goals'][i],i));
   const ins=db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,due_date,priority,project_id,section_id,tags,is_urgent,is_important,pomos) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-  [[uid(),'Review Q2 operations report',today,1,p1,s1,'["urgent","review"]',1,1,2],[uid(),'Set up Claude workflow templates',today,2,p1,s1,'["research"]',0,1,3],[uid(),'Research AI consulting competitors',nxt(1),2,p1,s2,'["research"]',1,0,2],[uid(),'Draft SOP template for onboarding',nxt(3),3,p1,s3,'[]',0,1,4],[uid(),'Book dentist appointment',today,3,p2,s4,'["personal"]',1,0,1],[uid(),'Renew gym membership',nxt(2),4,p2,s4,'[]',0,0,1],[uid(),'Read AI for Everyone Chapter 3',nxt(4),3,p2,s5,'["research"]',0,1,2]].forEach(t=>ins.run(id,...t));
+  [[uid(),'Review Q2 operations report',todayStr,1,p1,s1,'["urgent","review"]',1,1,2],[uid(),'Set up workflow templates',todayStr,2,p1,s1,'["research"]',0,1,3],[uid(),'Research competitors',nxt(1),2,p1,s2,'["research"]',1,0,2],[uid(),'Draft SOP template for onboarding',nxt(3),3,p1,s3,'[]',0,1,4],[uid(),'Book dentist appointment',todayStr,3,p2,s4,'["personal"]',1,0,1],[uid(),'Renew gym membership',nxt(2),4,p2,s4,'[]',0,0,1],[uid(),'Read Chapter 3',nxt(4),3,p2,s5,'["research"]',0,1,2]].forEach(t=>ins.run(id,...t));
   const insh=db.prepare('INSERT OR IGNORE INTO habits (id,user_id,emoji,name,sort_order) VALUES (?,?,?,?,?)');
   [[uid(),'💧','Drink 8 glasses of water',0],[uid(),'📚','Read for 20 minutes',1],[uid(),'🏃','Exercise',2],[uid(),'✍️','Journal or reflect',3]].forEach(h=>insh.run(id,...h));
   const hIds=db.prepare('SELECT id FROM habits WHERE user_id=? ORDER BY sort_order').all(id).map(r=>r.id);
@@ -243,15 +280,22 @@ function seedUser(id) {
 
 // SETTINGS
 app.get('/api/settings', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token FROM users WHERE id=?').get(req.session.userId);
-  res.json({ ...user, gcal_connected: !!user.gcal_connected, has_todoist: !!user.todoist_token, has_ticktick: !!user.ticktick_token });
+  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars FROM users WHERE id=?').get(req.session.userId);
+  res.json({
+    ...user,
+    gcal_connected: !!user.gcal_connected,
+    has_todoist: !!user.todoist_token,
+    has_ticktick: !!user.ticktick_token,
+    selected_calendars: JSON.parse(user.selected_calendars || '[]'),
+  });
 });
 app.patch('/api/settings', requireAuth, async (req, res) => {
-  const { todoist_token, ticktick_token, name, current_password, new_password } = req.body;
+  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars } = req.body;
   const updates=[]; const vals=[];
   if (name !== undefined) { updates.push('name=?'); vals.push(name); }
   if (todoist_token !== undefined) { updates.push('todoist_token=?'); vals.push(todoist_token || null); }
   if (ticktick_token !== undefined) { updates.push('ticktick_token=?'); vals.push(ticktick_token || null); }
+  if (selected_calendars !== undefined) { updates.push('selected_calendars=?'); vals.push(JSON.stringify(selected_calendars)); }
   if (new_password && current_password) {
     const user = db.prepare('SELECT password_hash FROM users WHERE id=?').get(req.session.userId);
     if (user.password_hash) {
@@ -279,16 +323,101 @@ function getUserGCal(userId) {
   auth.setCredentials({ refresh_token: user.gcal_refresh_token });
   return google.calendar({ version: 'v3', auth });
 }
+
+function getGCalOAuth() {
+  return new google.auth.OAuth2(GCAL_CLIENT_ID, GCAL_CLIENT_SECRET, `${APP_URL}/api/gcal/callback`);
+}
+
 app.get('/api/gcal/status', requireAuth, (req, res) => {
   const user = db.prepare('SELECT gcal_connected FROM users WHERE id=?').get(req.session.userId);
   res.json({ configured: !!user?.gcal_connected });
 });
 app.get('/api/gcal/connect', requireAuth, (req, res) => {
   if (!GCAL_CLIENT_ID) return res.status(400).send('Google OAuth not configured');
-  const auth = getGoogleOAuth();
-  const url = auth.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: ['https://www.googleapis.com/auth/calendar'], state: 'calendar' });
+  const auth = getGCalOAuth();
+  const url = auth.generateAuthUrl({
+    access_type: 'offline', prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+  });
   res.redirect(url);
 });
+app.get('/api/gcal/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code || !req.session.userId) return res.redirect('/?settings=1&error=gcal_failed');
+  try {
+    const auth = getGCalOAuth();
+    const { tokens } = await auth.getToken(code);
+    const refreshToken = tokens.refresh_token || tokens.access_token;
+    db.prepare('UPDATE users SET gcal_refresh_token=?, gcal_connected=1 WHERE id=?').run(refreshToken, req.session.userId);
+    res.redirect('/?settings=1&gcal=connected');
+  } catch(e) { console.error('GCal callback error:', e.message); res.redirect('/?settings=1&error=gcal_failed'); }
+});
+
+app.get('/api/gcal/calendars', requireAuth, async (req, res) => {
+  const cal = getUserGCal(req.session.userId);
+  if (!cal) return res.json([]);
+  try {
+    const user = db.prepare('SELECT selected_calendars FROM users WHERE id=?').get(req.session.userId);
+    const selected = JSON.parse(user.selected_calendars || '[]');
+    const { data } = await cal.calendarList.list({ maxResults: 100 });
+    const calendars = (data.items || []).map(c => ({
+      id: c.id,
+      name: c.summary,
+      backgroundColor: c.backgroundColor || '#c4922a',
+      selected: selected.includes(c.id),
+    }));
+    res.json(calendars);
+  } catch(e) { console.error('GCal calendars error:', e.message); res.json([]); }
+});
+
+app.get('/api/gcal/events', requireAuth, async (req, res) => {
+  const cal = getUserGCal(req.session.userId);
+  if (!cal) return res.json([]);
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ error: 'from and to required' });
+  try {
+    const user = db.prepare('SELECT selected_calendars FROM users WHERE id=?').get(req.session.userId);
+    const selected = JSON.parse(user.selected_calendars || '[]');
+    // Get calendar colors for lookup
+    let calColors = {};
+    try {
+      const { data: calList } = await cal.calendarList.list({ maxResults: 100 });
+      (calList.items || []).forEach(c => { calColors[c.id] = c.backgroundColor || '#c4922a'; });
+    } catch(e) {}
+
+    const calIds = selected.length > 0 ? selected : ['primary'];
+    const allEvents = [];
+    for (const calId of calIds) {
+      try {
+        const { data } = await cal.events.list({
+          calendarId: calId,
+          timeMin: `${from}T00:00:00Z`,
+          timeMax: `${to}T23:59:59Z`,
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 250,
+        });
+        (data.items || []).forEach(ev => {
+          const start = ev.start?.date || ev.start?.dateTime?.slice(0,10);
+          const end = ev.end?.date || ev.end?.dateTime?.slice(0,10);
+          allEvents.push({
+            id: ev.id,
+            title: ev.summary || '(no title)',
+            start,
+            end,
+            calendar_id: calId,
+            color: calColors[calId] || '#c4922a',
+            allDay: !!ev.start?.date,
+            startTime: ev.start?.dateTime || null,
+            endTime: ev.end?.dateTime || null,
+          });
+        });
+      } catch(e) {}
+    }
+    res.json(allEvents);
+  } catch(e) { console.error('GCal events error:', e.message); res.json([]); }
+});
+
 app.post('/api/gcal/sync', requireAuth, async (req, res) => {
   const cal = getUserGCal(req.session.userId);
   if (!cal) return res.status(400).json({ error: 'Google Calendar not connected. Go to Settings to connect.' });
@@ -297,8 +426,8 @@ app.post('/api/gcal/sync', requireAuth, async (req, res) => {
   for (const task of tasks) {
     const tags=(task.tags||[]).length?`Tags: ${task.tags.map(t=>'#'+t).join(' ')}`:'';
     const notesStr=task.notes?`Notes: ${task.notes}`:'';
-    const desc=[`${['','🔴 P1','🟠 P2','🔵 P3','⚪ P4'][task.priority]}`,`🍅 ${task.pomos||1}x25m`,task.proj_name?`Project: ${task.proj_name}`:'',tags,notesStr,'-- FaheemFlow'].filter(Boolean).join('\n');
-    const event={summary:task.name,description:desc,start:{date:task.due_date},end:{date:task.due_date},colorId:task.priority===1?'11':task.priority===2?'6':'1'};
+    const desc=[`${['','🔴 P1','🟠 P2','🟡 P3','⚪ P4'][task.priority]}`,`🍅 ${task.pomos||1}x25m`,task.proj_name?`Project: ${task.proj_name}`:'',tags,notesStr,'-- Irada'].filter(Boolean).join('\n');
+    const event={summary:task.name,description:desc,start:{date:task.due_date},end:{date:task.due_date},colorId:task.priority===1?'11':task.priority===2?'6':'5'};
     try {
       if(task.gcal_event_id){await cal.events.update({calendarId:'primary',eventId:task.gcal_event_id,requestBody:event});results.updated++;}
       else{const r=await cal.events.insert({calendarId:'primary',requestBody:event});db.prepare('UPDATE tasks SET gcal_event_id=? WHERE id=?').run(r.data.id,task.id);results.created++;}
@@ -430,7 +559,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
 });
 app.post('/api/projects', requireAuth, (req, res) => {
   const {id,name,color}=req.body;
-  db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(id,req.session.userId,name,color||'#3b82f6',db.prepare('SELECT COUNT(*) as c FROM projects WHERE user_id=?').get(req.session.userId).c);
+  db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(id,req.session.userId,name,color||'#c4922a',db.prepare('SELECT COUNT(*) as c FROM projects WHERE user_id=?').get(req.session.userId).c);
   res.json({ok:true});
 });
 app.delete('/api/projects/:id', requireAuth, (req, res) => { db.prepare('DELETE FROM projects WHERE id=? AND user_id=?').run(req.params.id,req.session.userId); res.json({ok:true}); });
@@ -479,4 +608,4 @@ app.post('/api/habits/:id/log', requireAuth, (req, res) => {
 });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
-app.listen(PORT, () => console.log(`FaheemFlow running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Irada running at http://localhost:${PORT}`));

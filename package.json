@@ -1,7 +1,7 @@
 {
-  "name": "faheemflow",
-  "version": "3.0.0",
-  "description": "FaheemFlow — personal task + habit tracker",
+  "name": "irada",
+  "version": "4.0.0",
+  "description": "Irada — Direct your will",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": {

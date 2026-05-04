@@ -1,6 +1,9 @@
-# FaheemFlow
+# Irada
 
 Personal task manager + habit tracker with Google Calendar sync.
+
+> **Irada** (إرادة) — Arabic for will, intention, purpose.
+> *Direct your will.*
 
 ---
 
@@ -18,51 +21,74 @@ npm start
 
 1. Push to GitHub repo
 2. Go to railway.app → New Project → Deploy from GitHub
-3. Generate a domain in Settings → Networking
+3. Generate a domain in Settings → Networking → Custom Domain: `irada.work`
 4. Add environment variables (see below)
 
 ---
 
 ## Google Calendar Setup
 
-Once deployed, add these three environment variables in Railway:
+Once deployed, add these environment variables in Railway:
 **Settings → Variables → Add Variable**
 
 | Variable | Where to get it |
 |---|---|
-| `GCAL_CLIENT_ID` | Google Cloud Console → Credentials → OAuth client |
-| `GCAL_CLIENT_SECRET` | Same OAuth client |
-| `GCAL_REFRESH_TOKEN` | OAuth Playground (see below) |
+| `GOOGLE_CLIENT_ID` | Google Cloud Console → Credentials → OAuth client |
+| `GOOGLE_CLIENT_SECRET` | Same OAuth client |
+| `GCAL_CLIENT_ID` | Same as `GOOGLE_CLIENT_ID` |
+| `GCAL_CLIENT_SECRET` | Same as `GOOGLE_CLIENT_SECRET` |
 
-### Getting your refresh token (5 minutes)
+Set the OAuth callback URLs in Google Cloud Console:
+- `https://irada.work/api/auth/google/callback`
+- `https://irada.work/api/gcal/callback`
 
-1. Go to [developers.google.com/oauthplayground](https://developers.google.com/oauthplayground)
-2. Click ⚙️ gear → check "Use your own OAuth credentials"
-3. Enter your Client ID and Client Secret
-4. In the left panel find **Google Calendar API v3** → select `https://www.googleapis.com/auth/calendar`
-5. Click **Authorize APIs** → sign in → Allow
-6. Click **Exchange authorization code for tokens**
-7. Copy the **Refresh token**
+---
 
-Add all three values to Railway → redeploy → the "Sync to Google Cal" button will appear.
+## Environment Variables
 
-### What the sync does
-
-- Pushes all pending tasks with due dates to your primary Google Calendar
-- Creates all-day events with priority, pomodoro estimate, project, and tags in the description
-- Color codes events: red (P1), orange (P2), blue (P3+)
-- Updates existing events if you re-sync after changing a due date
-- Never duplicates — tracks which tasks have already been pushed
+| Variable | Description |
+|---|---|
+| `ADMIN_SECRET` | Secret for creating user accounts via admin endpoint |
+| `SESSION_SECRET` | Random string for signing session cookies |
+| `RESEND_API_KEY` | Resend API key for password reset emails |
+| `FROM_EMAIL` | From address for emails (e.g. `hello@send.irada.work`) |
+| `APP_URL` | Full app URL (e.g. `https://irada.work`) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (for SSO + Calendar) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `GCAL_CLIENT_ID` | Same as GOOGLE_CLIENT_ID |
+| `GCAL_CLIENT_SECRET` | Same as GOOGLE_CLIENT_SECRET |
+| `GCAL_REFRESH_TOKEN` | Master fallback GCal token (per-user tokens stored in DB) |
+| `TODOIST_API_TOKEN` | Legacy fallback Todoist token |
+| `TICKTICK_ACCESS_TOKEN` | Legacy fallback TickTick token |
 
 ---
 
 ## Adding to iPhone home screen
 
-1. Open your Railway URL in Safari
+1. Open https://irada.work in Safari
 2. Tap Share → Add to Home Screen
-3. Name it FaheemFlow → Add
+3. Name it "Irada" → Add
 
 Opens full-screen like a native app.
+
+---
+
+## iOS Widget
+
+1. Install Scriptable (free, App Store)
+2. Open `Irada-Widget.js`, paste into Scriptable
+3. Set your `APP_URL`, `EMAIL`, `PASSWORD`
+4. Add widget to home screen → choose Scriptable
+
+---
+
+## Admin: create a user account
+
+```bash
+curl -X POST https://irada.work/admin/create-user \
+  -H "Content-Type: application/json" \
+  -d '{"adminSecret":"YOUR_ADMIN_SECRET","email":"you@example.com","password":"pass","name":"Your Name"}'
+```
 
 ---
 
@@ -74,4 +100,6 @@ Opens full-screen like a native app.
 | Database | SQLite (better-sqlite3) |
 | Frontend | Vanilla HTML/CSS/JS |
 | Calendar | Google Calendar API v3 |
+| Auth | Email/password + Google SSO |
+| Email | Resend |
 | Deployment | Railway |
