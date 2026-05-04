@@ -26,12 +26,25 @@ html{background:#1a1714}
 body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
 .app{background:var(--bg)}
 
+/* DARK MODE */
+html.dark{
+  --bg:#1a1714;--surface:#2a2520;--border:#3d3830;--bh:#5a5248;
+  --text:#f5f0e8;--t2:#c8bfb5;--t3:#7a7168;
+  --al:rgba(196,146,42,.14);--gbg:rgba(26,122,74,.12);
+  --obg:rgba(201,90,26,.12);--dbg:rgba(220,38,38,.12);
+}
+html.dark body{background:var(--bg)}
+html.dark .ti.editing{box-shadow:0 0 0 3px rgba(196,146,42,.15)}
+html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
+
 /* LOGIN — dark ink */
 .login-wrap{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;background:#1a1714}
 .login-card{background:#23211e;border:1px solid rgba(196,146,42,.25);border-radius:var(--rl);padding:36px 28px;width:100%;max-width:380px;box-shadow:0 12px 48px rgba(0,0,0,.5)}
-.login-logo{font-family:var(--fd);font-size:28px;font-weight:400;text-align:center;margin-bottom:4px;color:#f5f0e8;letter-spacing:.02em}
+.login-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:28px}
+.login-logo{font-family:var(--fd);font-size:48px;font-weight:400;text-align:center;margin-top:16px;margin-bottom:8px;color:#f5f0e8;letter-spacing:.02em;line-height:1}
 .login-logo em{color:#e8b84b;font-style:italic}
-.login-tagline{font-size:10px;font-weight:300;letter-spacing:.18em;text-transform:uppercase;color:#c4922a;text-align:center;margin-bottom:28px}
+.login-logo-line{width:40px;height:1px;background:linear-gradient(90deg,transparent,#c4922a,transparent);margin:6px auto 10px}
+.login-tagline{font-size:10px;font-weight:300;letter-spacing:.18em;text-transform:uppercase;color:#c4922a;text-align:center}
 .login-sub{font-size:13px;color:#7a7168;text-align:center;margin-bottom:28px}
 .login-label{font-size:11px;font-weight:500;color:#b8b0a5;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;display:block}
 .login-input{width:100%;border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:11px 13px;font-family:var(--font);font-size:14px;color:#f5f0e8;background:rgba(255,255,255,.06);outline:none;margin-bottom:14px}
@@ -61,10 +74,12 @@ body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);
   .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.12)}
   .sidebar.open{transform:translateX(0)}
 }
-.logo{padding:14px 16px;font-family:var(--fd);font-size:18px;font-weight:400;border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.logo em{color:var(--accent);font-style:italic}
-.logo-tagline{font-size:9px;font-weight:300;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-top:2px}
-.logo-user{font-family:var(--font);font-size:11px;color:var(--t3);font-weight:400;margin-top:1px}
+.logo{padding:14px 16px;border-bottom:2px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.logo-inner{display:flex;align-items:center;gap:10px}
+.logo-wordmark{font-family:var(--fd);font-size:24px;font-weight:400;color:var(--text);letter-spacing:.02em;line-height:1}
+.logo-wordmark em{color:var(--accent);font-style:italic}
+.logo-tagline{font-size:11px;font-weight:300;letter-spacing:.12em;text-transform:uppercase;color:#b8b0a5;margin-top:3px}
+.logo-user{font-family:var(--font);font-size:11px;color:var(--t3);font-weight:400;margin-top:2px}
 .sb-x{display:none;width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:20px;color:var(--t3);border-radius:6px;align-items:center;justify-content:center}
 @media(max-width:700px){.sb-x{display:flex}}
 .sbl{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.09em;text-transform:uppercase;padding:12px 14px 4px}
@@ -573,8 +588,17 @@ body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);
 <!-- LOGIN -->
 <div class="login-wrap" id="login-page">
   <div class="login-card" id="login-form-wrap">
-    <div class="login-logo">Irad<em>a</em></div>
-    <div class="login-tagline">Direct your will</div>
+    <div class="login-logo-wrap">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+        <polygon points="28,4 52,42 4,42" stroke="#c4922a" stroke-width="1.5" fill="none"/>
+        <polygon points="28,14 44,42 12,42" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".5"/>
+        <circle cx="28" cy="28" r="10" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".4"/>
+        <circle cx="28" cy="28" r="2.5" fill="#c4922a"/>
+      </svg>
+      <div class="login-logo">Irad<em>a</em></div>
+      <div class="login-logo-line"></div>
+      <div class="login-tagline">Direct your will</div>
+    </div>
     <a href="/api/auth/google" class="google-btn">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Sign in with Google
@@ -589,7 +613,16 @@ body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);
     <div class="login-err" id="l-err"></div>
   </div>
   <div class="login-card" id="forgot-form-wrap" style="display:none">
-    <div class="login-logo">Irad<em>a</em></div>
+    <div class="login-logo-wrap">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+        <polygon points="28,4 52,42 4,42" stroke="#c4922a" stroke-width="1.5" fill="none"/>
+        <polygon points="28,14 44,42 12,42" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".5"/>
+        <circle cx="28" cy="28" r="10" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".4"/>
+        <circle cx="28" cy="28" r="2.5" fill="#c4922a"/>
+      </svg>
+      <div class="login-logo">Irad<em>a</em></div>
+      <div class="login-logo-line"></div>
+    </div>
     <div class="login-sub">Reset your password</div>
     <label class="login-label">Email address</label>
     <input class="login-input" id="f-email" type="email" placeholder="you@email.com" onkeydown="if(event.key==='Enter')doForgot()"/>
@@ -599,7 +632,16 @@ body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);
     <div class="login-back" onclick="showLogin()">← Back to sign in</div>
   </div>
   <div class="login-card" id="reset-form-wrap" style="display:none">
-    <div class="login-logo">Irad<em>a</em></div>
+    <div class="login-logo-wrap">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+        <polygon points="28,4 52,42 4,42" stroke="#c4922a" stroke-width="1.5" fill="none"/>
+        <polygon points="28,14 44,42 12,42" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".5"/>
+        <circle cx="28" cy="28" r="10" stroke="#c4922a" stroke-width=".8" fill="none" opacity=".4"/>
+        <circle cx="28" cy="28" r="2.5" fill="#c4922a"/>
+      </svg>
+      <div class="login-logo">Irad<em>a</em></div>
+      <div class="login-logo-line"></div>
+    </div>
     <div class="login-sub">Set a new password</div>
     <label class="login-label">New password</label>
     <input class="login-input" id="r-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doReset()"/>
@@ -615,7 +657,19 @@ body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);
   <div class="overlay" id="overlay" onclick="closeSB()"></div>
   <div class="sidebar" id="sidebar">
     <div class="logo">
-      <div><div>Irad<em>a</em></div><div class="logo-tagline">Direct your will</div><div class="logo-user" id="user-name"></div></div>
+      <div class="logo-inner">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" flex-shrink="0" style="flex-shrink:0">
+          <polygon points="14,2 26,21 2,21" stroke="#c4922a" stroke-width="1.2" fill="none"/>
+          <polygon points="14,8 22,21 6,21" stroke="#c4922a" stroke-width=".6" fill="none" opacity=".55"/>
+          <circle cx="14" cy="14" r="5" stroke="#c4922a" stroke-width=".6" fill="none" opacity=".45"/>
+          <circle cx="14" cy="14" r="1.5" fill="#c4922a"/>
+        </svg>
+        <div>
+          <div class="logo-wordmark">Irad<em>a</em></div>
+          <div class="logo-tagline">Direct your will</div>
+          <div class="logo-user" id="user-name"></div>
+        </div>
+      </div>
       <button class="sb-x" onclick="closeSB()">×</button>
     </div>
     <div>
@@ -760,9 +814,22 @@ let importRows=[];
 let dragEl=null, dragClone=null, dragOffX=0, dragOffY=0, dragId=null, dragOriginQ=null;
 let resetToken=null;
 let rolloverTasks=[], rolloverSelected=new Set();
-// sort/filter
 let sortBy='priority', sfOpen=false;
 let filterProj='', filterPri='', filterTag='', filterFrom='', filterTo='';
+let currentTheme='light';
+
+function applyTheme(theme){
+  currentTheme=theme||'light';
+  if(currentTheme==='dark')document.documentElement.classList.add('dark');
+  else document.documentElement.classList.remove('dark');
+  localStorage.setItem('irada-theme',currentTheme);
+}
+function loadTheme(){applyTheme(localStorage.getItem('irada-theme')||'light');}
+async function setTheme(theme){
+  applyTheme(theme);
+  await PATCH('/settings',{theme});
+  if(view==='settings')renderSettings();
+}
 
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const td=()=>new Date().toISOString().slice(0,10);
@@ -805,7 +872,7 @@ async function doLogin(){
     if(!r.ok){err.textContent=d.error||'Login failed';return;}
     currentUser=d;document.getElementById('user-name').textContent=d.name;
     document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='flex';
-    loadAll();
+    await loadAll();
   }catch(e){err.textContent='Connection error';}
 }
 
@@ -849,6 +916,7 @@ async function checkAuth(){
     const r=await fetch('/api/auth/me');
     if(r.ok){
       const u=await r.json();currentUser=u;
+      applyTheme(u.theme||localStorage.getItem('irada-theme')||'light');
       document.getElementById('user-name').textContent=u.name;
       document.getElementById('login-page').style.display='none';
       document.getElementById('app-page').style.display='flex';
@@ -896,6 +964,20 @@ async function renderSettings(){
     const s=await GET('/settings');
     currentUser={...currentUser,...s};
     area.innerHTML=`<div class="settings-wrap">
+
+      <div class="set-section">
+        <div class="set-hdr"><div class="set-hdr-title">Appearance</div><div class="set-hdr-sub">Choose your display mode</div></div>
+        <div class="set-row" style="align-items:center">
+          <div class="set-row-info">
+            <div class="set-row-label">Theme</div>
+            <div class="set-row-sub">Light keeps the parchment warmth. Dark goes full ink.</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="set-btn${s.theme==='light'?' primary':''}" onclick="setTheme('light')" style="display:flex;align-items:center;gap:5px">☀ Light</button>
+            <button class="set-btn${s.theme!=='light'?' primary':''}" onclick="setTheme('dark')" style="display:flex;align-items:center;gap:5px">◑ Dark</button>
+          </div>
+        </div>
+      </div>
 
       <div class="set-section">
         <div class="set-hdr"><div class="set-hdr-title">Profile</div><div class="set-hdr-sub">Your account details</div></div>
@@ -1829,6 +1911,7 @@ async function doRollover(mode){
   toast(mode==='fresh'?'Starting fresh today':'Tasks carried forward');
 }
 
+loadTheme();
 checkAuth();
 </script>
 </body>

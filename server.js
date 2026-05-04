@@ -36,7 +36,7 @@ db.exec(`
     gcal_refresh_token TEXT, gcal_connected INTEGER DEFAULT 0,
     selected_calendars TEXT DEFAULT '[]',
     reset_token TEXT, reset_token_expires TEXT,
-    last_login_date TEXT,
+    last_login_date TEXT, theme TEXT DEFAULT 'light',
     created_at TEXT DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS projects (
@@ -86,6 +86,7 @@ db.exec(`
   'ALTER TABLE users ADD COLUMN reset_token_expires TEXT',
   'ALTER TABLE users ADD COLUMN reset_expires TEXT',
   'ALTER TABLE users ADD COLUMN last_login_date TEXT',
+  'ALTER TABLE users ADD COLUMN theme TEXT DEFAULT \'light\'',
   'ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ""',
   'ALTER TABLE tasks ADD COLUMN ticktick_task_id TEXT',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
@@ -167,6 +168,7 @@ app.get('/api/auth/me', (req, res) => {
     has_todoist: !!user.todoist_token,
     has_ticktick: !!user.ticktick_token,
     selected_calendars: JSON.parse(user.selected_calendars || '[]'),
+    theme: user.theme || 'light',
     needs_rollover,
     incomplete_today_tasks,
   });
@@ -280,22 +282,24 @@ function seedUser(id) {
 
 // SETTINGS
 app.get('/api/settings', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars FROM users WHERE id=?').get(req.session.userId);
+  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars,theme FROM users WHERE id=?').get(req.session.userId);
   res.json({
     ...user,
     gcal_connected: !!user.gcal_connected,
     has_todoist: !!user.todoist_token,
     has_ticktick: !!user.ticktick_token,
     selected_calendars: JSON.parse(user.selected_calendars || '[]'),
+    theme: user.theme || 'light',
   });
 });
 app.patch('/api/settings', requireAuth, async (req, res) => {
-  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars } = req.body;
+  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars, theme } = req.body;
   const updates=[]; const vals=[];
   if (name !== undefined) { updates.push('name=?'); vals.push(name); }
   if (todoist_token !== undefined) { updates.push('todoist_token=?'); vals.push(todoist_token || null); }
   if (ticktick_token !== undefined) { updates.push('ticktick_token=?'); vals.push(ticktick_token || null); }
   if (selected_calendars !== undefined) { updates.push('selected_calendars=?'); vals.push(JSON.stringify(selected_calendars)); }
+  if (theme !== undefined) { updates.push('theme=?'); vals.push(theme === 'dark' ? 'dark' : 'light'); }
   if (new_password && current_password) {
     const user = db.prepare('SELECT password_hash FROM users WHERE id=?').get(req.session.userId);
     if (user.password_hash) {
