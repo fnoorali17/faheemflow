@@ -185,7 +185,7 @@ app.get('/api/auth/google', (req, res) => {
 });
 app.get('/api/auth/google/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.redirect('/?error=oauth_failed');
+  if (!code) return res.redirect('/login?error=oauth_failed');
   try {
     const auth = getGoogleOAuth();
     const { tokens } = await auth.getToken(code);
@@ -206,7 +206,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     req.session.userId = user.id;
     req.session.check_rollover = true;
     res.redirect(isNew ? '/?settings=1' : '/');
-  } catch(e) { console.error('Google OAuth error:', e.message); res.redirect('/?error=oauth_failed'); }
+  } catch(e) { console.error('Google OAuth error:', e.message); res.redirect('/login?error=oauth_failed'); }
 });
 
 // AUTH: FORGOT/RESET PASSWORD
@@ -343,7 +343,7 @@ app.get('/api/gcal/connect', requireAuth, (req, res) => {
 });
 app.get('/api/gcal/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code || !req.session.userId) return res.redirect('/?settings=1&error=gcal_failed');
+  if (!code || !req.session.userId) return res.redirect('/login?error=gcal_failed');
   try {
     const auth = getGCalOAuth();
     const { tokens } = await auth.getToken(code);
