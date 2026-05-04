@@ -218,7 +218,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000).toISOString();
     db.prepare('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?').run(token, expires, user.id);
-    const resetUrl = `${APP_URL}/?reset=${token}`;
+    const resetUrl = `${APP_URL}/login?reset=${token}`;
     await sendEmail(user.email, 'Reset your Irada password',
       `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#1a1714">
         <div style="background:#23211e;border-radius:12px;padding:28px;border:1px solid rgba(196,146,42,0.2)">
@@ -607,5 +607,34 @@ app.post('/api/habits/:id/log', requireAuth, (req, res) => {
   res.json({ok:true});
 });
 
+// WAITLIST
+db.exec(`CREATE TABLE IF NOT EXISTS waitlist (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+)`);
+app.post('/api/waitlist', (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+  try {
+    db.prepare('INSERT OR IGNORE INTO waitlist (email) VALUES (?)').run(email.toLowerCase().trim());
+    console.log(`Waitlist signup: ${email}`);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: 'Could not save email' }); }
+});
+
+// ROUTING
+// / → landing for guests, app for logged-in users
+app.get('/', (req, res) => {
+  if (req.session.userId) {
+    const user = db.prepare('SELECT id FROM users WHERE id=?').get(req.session.userId);
+    if (user) return res.sendFile(path.join(__dirname,'public','index.html'));
+  }
+  res.sendFile(path.join(__dirname,'public','landing.html'));
+});
+// /login → always serve the app shell (handles ?reset= and other URL params)
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+// Everything else → app (handles /?reset=token, /?settings=1, etc.)
 app.get('*', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+
 app.listen(PORT, () => console.log(`Irada running at http://localhost:${PORT}`));

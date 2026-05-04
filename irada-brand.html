@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Irada — Brand Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #1a1714;
+  --ink-2: #3d3830;
+  --ink-3: #7a7168;
+  --ink-4: #b8b0a5;
+  --parchment: #f5f0e8;
+  --parchment-2: #ede7d9;
+  --parchment-3: #e3dbc8;
+  --gold: #c4922a;
+  --gold-light: #e8b84b;
+  --gold-pale: #f5e8cc;
+  --teal: #1e5c5c;
+  --teal-light: #2d8080;
+  --teal-pale: #d4eaea;
+  --surface: #ffffff;
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--parchment);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 120%, rgba(196,146,42,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 80% 20%, rgba(30,92,92,0.15) 0%, transparent 60%);
+}
+
+/* Geometric ornament */
+.hero-ornament {
+  position: absolute;
+  top: 40px;
+  right: 60px;
+  width: 120px;
+  height: 120px;
+  opacity: 0.12;
+}
+
+.nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 48px;
+}
+
+.logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-symbol {
+  width: 36px;
+  height: 36px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.logo-wordmark {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--parchment);
+  letter-spacing: 0.04em;
+}
+
+.logo-wordmark em {
+  font-style: italic;
+  color: var(--gold-light);
+}
+
+.nav-tagline {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--ink-4);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 48px;
+  text-align: center;
+}
+
+.hero-eyebrow {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-eyebrow::before,
+.hero-eyebrow::after {
+  content: '';
+  width: 32px;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.5;
+}
+
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 400;
+  color: var(--parchment);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+
+.hero-title em {
+  font-style: italic;
+  color: var(--gold-light);
+}
+
+.hero-urdu {
+  font-size: clamp(20px, 3vw, 32px);
+  color: var(--ink-3);
+  margin-bottom: 32px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  direction: rtl;
+}
+
+.hero-sub {
+  font-size: clamp(14px, 1.5vw, 18px);
+  color: var(--ink-4);
+  max-width: 480px;
+  line-height: 1.7;
+  font-weight: 300;
+  margin-bottom: 48px;
+}
+
+.hero-sub strong {
+  color: var(--parchment-2);
+  font-weight: 500;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  padding: 14px 32px;
+  border-radius: 2px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-primary:hover { background: var(--gold-light); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--parchment-2);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 14px 32px;
+  border-radius: 2px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,0.5); color: var(--parchment); }
+
+.hero-bottom {
+  position: relative;
+  z-index: 10;
+  padding: 28px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.hero-stat {
+  text-align: center;
+}
+
+.hero-stat-num {
+  font-family: var(--serif);
+  font-size: 28px;
+  color: var(--gold-light);
+  font-weight: 400;
+}
+
+.hero-stat-label {
+  font-size: 10px;
+  font-weight: 300;
+  color: var(--ink-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.hero-stat-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── BRAND SECTION ── */
+.brand-section {
+  background: var(--parchment);
+  padding: 100px 48px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--parchment-3); }
+
+.brand-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+/* Logo variations */
+.brand-card {
+  background: var(--surface);
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.brand-card.dark { background: var(--ink); }
+.brand-card.gold { background: var(--gold); }
+.brand-card.teal { background: var(--teal); }
+.brand-card.parchment { background: var(--parchment-2); }
+
+.brand-card-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.brand-card.dark .brand-card-label,
+.brand-card.teal .brand-card-label { color: rgba(255,255,255,0.3); }
+.brand-card.gold .brand-card-label { color: rgba(26,23,20,0.4); }
+
+/* Logo lockup large */
+.logo-large {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-symbol-lg {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.logo-wordmark-lg {
+  font-family: var(--serif);
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+.logo-wordmark-lg em { font-style: italic; color: var(--gold); }
+.brand-card.dark .logo-wordmark-lg { color: var(--parchment); }
+.brand-card.dark .logo-wordmark-lg em { color: var(--gold-light); }
+.brand-card.teal .logo-wordmark-lg { color: var(--parchment); }
+.brand-card.teal .logo-wordmark-lg em { color: var(--gold-light); }
+.brand-card.gold .logo-wordmark-lg { color: var(--ink); }
+.brand-card.gold .logo-wordmark-lg em { color: rgba(26,23,20,0.65); }
+
+.logo-sub {
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.brand-card.dark .logo-sub,
+.brand-card.teal .logo-sub { color: rgba(255,255,255,0.3); }
+.brand-card.gold .logo-sub { color: rgba(26,23,20,0.4); }
+
+/* ── TYPOGRAPHY ── */
+.type-card {
+  background: var(--surface);
+  padding: 48px;
+  grid-column: 1 / -1;
+}
+
+.type-specimen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.type-display {
+  font-family: var(--serif);
+  font-size: 64px;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.type-display em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.type-name {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 20px;
+}
+
+.type-body-specimen {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  font-weight: 300;
+  margin-bottom: 16px;
+}
+
+.type-weights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.type-weight-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.type-weight-label {
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.tw-light { font-family: var(--sans); font-weight: 300; font-size: 18px; color: var(--ink-2); }
+.tw-reg { font-family: var(--sans); font-weight: 400; font-size: 18px; color: var(--ink-2); }
+.tw-med { font-family: var(--sans); font-weight: 500; font-size: 18px; color: var(--ink-2); }
+
+/* ── COLOR PALETTE ── */
+.palette-card {
+  background: var(--surface);
+  padding: 48px;
+  grid-column: 1 / -1;
+}
+
+.palette-row {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 24px;
+}
+
+.swatch {
+  flex: 1;
+  height: 80px;
+  border-radius: 1px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+}
+
+.swatch-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.swatch-label.light { color: #fff; }
+.swatch-label.dark { color: #1a1714; }
+
+/* ── APP PREVIEW ── */
+.app-section {
+  background: var(--parchment-2);
+  padding: 100px 48px;
+}
+
+.app-preview {
+  background: var(--ink);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.app-bar {
+  background: rgba(255,255,255,0.04);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.app-dots { display: flex; gap: 6px; }
+.app-dot { width: 10px; height: 10px; border-radius: 50%; }
+.app-dot:nth-child(1) { background: #ff5f57; }
+.app-dot:nth-child(2) { background: #febc2e; }
+.app-dot:nth-child(3) { background: #28c840; }
+
+.app-url {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  font-family: monospace;
+  text-align: center;
+}
+
+.app-inner {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 480px;
+}
+
+.app-sidebar {
+  background: rgba(255,255,255,0.03);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 20px 0;
+}
+
+.app-logo-inner {
+  padding: 0 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 16px;
+}
+
+.app-logo-text {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.02em;
+}
+
+.app-logo-text em {
+  font-style: italic;
+  color: var(--gold-light);
+}
+
+.app-sb-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  padding: 0 16px;
+  margin-bottom: 4px;
+  margin-top: 16px;
+}
+
+.app-sb-item {
+  padding: 7px 16px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-sb-item.active {
+  background: rgba(196,146,42,0.12);
+  color: var(--gold-light);
+  border-right: 2px solid var(--gold);
+}
+
+.app-sb-proj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 500;
+}
+
+.app-sb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.app-main {
+  padding: 24px;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.app-page-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  color: rgba(255,255,255,0.85);
+  font-weight: 400;
+}
+
+.app-page-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  margin-top: 2px;
+}
+
+.app-sync-btn {
+  background: rgba(196,146,42,0.15);
+  border: 1px solid rgba(196,146,42,0.3);
+  color: var(--gold-light);
+  padding: 6px 14px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.app-task {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 4px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.app-task-chk {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+.app-task-chk.done {
+  background: #1a7a4a;
+  border-color: #1a7a4a;
+}
+
+.app-task-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  flex: 1;
+  font-weight: 400;
+}
+
+.app-task-name.done {
+  text-decoration: line-through;
+  color: rgba(255,255,255,0.25);
+}
+
+.app-task-due {
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  font-family: monospace;
+}
+
+.app-task-due.today { color: #1a7a4a; }
+.app-task-due.overdue { color: #dc2626; }
+
+.app-task-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.app-section-hdr {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin: 16px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── TAGLINE OPTIONS ── */
+.tagline-section {
+  background: var(--surface);
+  padding: 100px 48px;
+}
+
+.tagline-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin-top: 48px;
+}
+
+.tagline-card {
+  background: var(--parchment);
+  padding: 40px 32px;
+}
+
+.tagline-text {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 16px;
+}
+
+.tagline-text em { font-style: italic; color: var(--gold); }
+
+.tagline-note {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+/* ── CLOSING ── */
+.closing {
+  background: var(--ink);
+  padding: 80px 48px;
+  text-align: center;
+}
+
+.closing-wordmark {
+  font-family: var(--serif);
+  font-size: 48px;
+  color: var(--parchment);
+  margin-bottom: 8px;
+}
+
+.closing-wordmark em { font-style: italic; color: var(--gold-light); }
+
+.closing-urdu {
+  font-size: 22px;
+  color: var(--ink-3);
+  direction: rtl;
+  margin-bottom: 16px;
+}
+
+.closing-def {
+  font-size: 13px;
+  color: var(--ink-4);
+  font-weight: 300;
+  letter-spacing: 0.04em;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .nav { padding: 20px 24px; }
+  .hero-content { padding: 40px 24px; }
+  .brand-section, .app-section, .tagline-section { padding: 60px 24px; }
+  .brand-grid { grid-template-columns: 1fr; }
+  .type-specimen { grid-template-columns: 1fr; }
+  .tagline-grid { grid-template-columns: 1fr; }
+  .app-inner { grid-template-columns: 1fr; }
+  .app-sidebar { display: none; }
+  .hero-bottom { gap: 20px; padding: 20px 24px; flex-wrap: wrap; }
+  .palette-row { flex-wrap: wrap; }
+  .swatch { min-width: 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+
+  <svg class="hero-ornament" viewBox="0 0 120 120" fill="none">
+    <polygon points="60,4 116,30 116,90 60,116 4,90 4,30" stroke="white" stroke-width="0.5" fill="none"/>
+    <polygon points="60,14 106,34 106,86 60,106 14,86 14,34" stroke="white" stroke-width="0.5" fill="none"/>
+    <polygon points="60,24 96,42 96,78 60,96 24,78 24,42" stroke="white" stroke-width="0.5" fill="none"/>
+    <circle cx="60" cy="60" r="8" stroke="white" stroke-width="0.5" fill="none"/>
+    <line x1="60" y1="4" x2="60" y2="116" stroke="white" stroke-width="0.3" opacity="0.4"/>
+    <line x1="4" y1="60" x2="116" y2="60" stroke="white" stroke-width="0.3" opacity="0.4"/>
+  </svg>
+
+  <nav class="nav">
+    <div class="logo-mark">
+      <svg class="logo-symbol" viewBox="0 0 36 36" fill="none">
+        <polygon points="18,2 34,10 34,26 18,34 2,26 2,10" stroke="#c4922a" stroke-width="1" fill="none"/>
+        <polygon points="18,7 29,12 29,24 18,29 7,24 7,12" stroke="#c4922a" stroke-width="0.5" fill="none" opacity="0.5"/>
+        <circle cx="18" cy="18" r="3" fill="#c4922a"/>
+        <line x1="18" y1="2" x2="18" y2="7" stroke="#c4922a" stroke-width="1"/>
+        <line x1="18" y1="29" x2="18" y2="34" stroke="#c4922a" stroke-width="1"/>
+        <line x1="2" y1="18" x2="7" y2="18" stroke="#c4922a" stroke-width="1"/>
+        <line x1="29" y1="18" x2="34" y2="18" stroke="#c4922a" stroke-width="1"/>
+      </svg>
+      <div>
+        <div class="logo-wordmark">Irad<em>a</em></div>
+      </div>
+    </div>
+    <div class="nav-tagline">Direct your will</div>
+  </nav>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">إرادة &nbsp;·&nbsp; Urdu &nbsp;·&nbsp; The deliberate direction of will</div>
+    <h1 class="hero-title">Irad<em>a</em></h1>
+    <div class="hero-urdu">إرادة</div>
+    <p class="hero-sub">
+      A productivity app built for people who operate at the intersection of <strong>complexity and consequence.</strong>
+      Plan deliberately. Execute with clarity. Build what matters.
+    </p>
+    <div class="hero-cta">
+      <a href="#" class="btn-primary">Request early access</a>
+      <a href="#" class="btn-ghost">See how it works</a>
+    </div>
+  </div>
+
+  <div class="hero-bottom">
+    <div class="hero-stat">
+      <div class="hero-stat-num">8</div>
+      <div class="hero-stat-label">Integrated views</div>
+    </div>
+    <div class="hero-stat-divider"></div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">3</div>
+      <div class="hero-stat-label">Platform syncs</div>
+    </div>
+    <div class="hero-stat-divider"></div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">∞</div>
+      <div class="hero-stat-label">Clarity of purpose</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── BRAND ── -->
+<section class="brand-section">
+  <div class="section-label">Brand System</div>
+
+  <div class="brand-grid">
+
+    <!-- Dark -->
+    <div class="brand-card dark">
+      <div class="brand-card-label">Primary — Dark</div>
+      <div class="logo-large">
+        <svg class="logo-symbol-lg" viewBox="0 0 56 56" fill="none">
+          <polygon points="28,3 53,15 53,41 28,53 3,41 3,15" stroke="#c4922a" stroke-width="1.5" fill="none"/>
+          <polygon points="28,10 46,19 46,37 28,46 10,37 10,19" stroke="#c4922a" stroke-width="0.75" fill="none" opacity="0.5"/>
+          <circle cx="28" cy="28" r="4" fill="#c4922a"/>
+          <line x1="28" y1="3" x2="28" y2="10" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="28" y1="46" x2="28" y2="53" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="3" y1="28" x2="10" y2="28" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="46" y1="28" x2="53" y2="28" stroke="#c4922a" stroke-width="1.5"/>
+        </svg>
+        <div>
+          <div class="logo-wordmark-lg">Irad<em>a</em></div>
+          <div class="logo-sub">Direct your will</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parchment -->
+    <div class="brand-card parchment">
+      <div class="brand-card-label">Secondary — Parchment</div>
+      <div class="logo-large">
+        <svg class="logo-symbol-lg" viewBox="0 0 56 56" fill="none">
+          <polygon points="28,3 53,15 53,41 28,53 3,41 3,15" stroke="#c4922a" stroke-width="1.5" fill="none"/>
+          <polygon points="28,10 46,19 46,37 28,46 10,37 10,19" stroke="#c4922a" stroke-width="0.75" fill="none" opacity="0.5"/>
+          <circle cx="28" cy="28" r="4" fill="#c4922a"/>
+          <line x1="28" y1="3" x2="28" y2="10" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="28" y1="46" x2="28" y2="53" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="3" y1="28" x2="10" y2="28" stroke="#c4922a" stroke-width="1.5"/>
+          <line x1="46" y1="28" x2="53" y2="28" stroke="#c4922a" stroke-width="1.5"/>
+        </svg>
+        <div>
+          <div class="logo-wordmark-lg">Irad<em>a</em></div>
+          <div class="logo-sub">Direct your will</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teal -->
+    <div class="brand-card teal">
+      <div class="brand-card-label">Accent — Teal</div>
+      <div class="logo-large">
+        <svg class="logo-symbol-lg" viewBox="0 0 56 56" fill="none">
+          <polygon points="28,3 53,15 53,41 28,53 3,41 3,15" stroke="#e8b84b" stroke-width="1.5" fill="none"/>
+          <polygon points="28,10 46,19 46,37 28,46 10,37 10,19" stroke="#e8b84b" stroke-width="0.75" fill="none" opacity="0.5"/>
+          <circle cx="28" cy="28" r="4" fill="#e8b84b"/>
+          <line x1="28" y1="3" x2="28" y2="10" stroke="#e8b84b" stroke-width="1.5"/>
+          <line x1="28" y1="46" x2="28" y2="53" stroke="#e8b84b" stroke-width="1.5"/>
+          <line x1="3" y1="28" x2="10" y2="28" stroke="#e8b84b" stroke-width="1.5"/>
+          <line x1="46" y1="28" x2="53" y2="28" stroke="#e8b84b" stroke-width="1.5"/>
+        </svg>
+        <div>
+          <div class="logo-wordmark-lg">Irad<em>a</em></div>
+          <div class="logo-sub">Direct your will</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gold -->
+    <div class="brand-card gold">
+      <div class="brand-card-label">Bold — Gold</div>
+      <div class="logo-large">
+        <svg class="logo-symbol-lg" viewBox="0 0 56 56" fill="none">
+          <polygon points="28,3 53,15 53,41 28,53 3,41 3,15" stroke="#1a1714" stroke-width="1.5" fill="none"/>
+          <polygon points="28,10 46,19 46,37 28,46 10,37 10,19" stroke="#1a1714" stroke-width="0.75" fill="none" opacity="0.4"/>
+          <circle cx="28" cy="28" r="4" fill="#1a1714"/>
+          <line x1="28" y1="3" x2="28" y2="10" stroke="#1a1714" stroke-width="1.5"/>
+          <line x1="28" y1="46" x2="28" y2="53" stroke="#1a1714" stroke-width="1.5"/>
+          <line x1="3" y1="28" x2="10" y2="28" stroke="#1a1714" stroke-width="1.5"/>
+          <line x1="46" y1="28" x2="53" y2="28" stroke="#1a1714" stroke-width="1.5"/>
+        </svg>
+        <div>
+          <div class="logo-wordmark-lg">Irad<em>a</em></div>
+          <div class="logo-sub">Direct your will</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Typography -->
+  <div class="brand-grid" style="margin-top:3px">
+    <div class="type-card">
+      <div class="section-label" style="margin-bottom:32px">Typography</div>
+      <div class="type-specimen">
+        <div>
+          <div class="type-name">Display — Playfair Display</div>
+          <div class="type-display">Irad<em>a</em></div>
+          <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--ink-2);line-height:1.3;margin-bottom:16px">
+            The deliberate<br><em>direction of will</em>
+          </div>
+          <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--ink-3);font-style:italic">
+            Used for wordmark, headlines, app navigation titles
+          </div>
+        </div>
+        <div>
+          <div class="type-name">Body — DM Sans</div>
+          <div class="type-body-specimen">
+            Irada is built for people who operate at the intersection of complexity and consequence — development finance, climate consulting, strategic advisory.
+          </div>
+          <div class="type-weights">
+            <div class="type-weight-row">
+              <span class="type-weight-label">Light</span>
+              <span class="tw-light">Direct your will</span>
+            </div>
+            <div class="type-weight-row">
+              <span class="type-weight-label">Regular</span>
+              <span class="tw-reg">Direct your will</span>
+            </div>
+            <div class="type-weight-row">
+              <span class="type-weight-label">Medium</span>
+              <span class="tw-med">Direct your will</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color palette -->
+  <div class="brand-grid" style="margin-top:3px">
+    <div class="palette-card">
+      <div class="section-label" style="margin-bottom:32px">Color Palette</div>
+      <div class="palette-row">
+        <div class="swatch" style="background:#1a1714"><span class="swatch-label light">Ink<br>#1a1714</span></div>
+        <div class="swatch" style="background:#3d3830"><span class="swatch-label light">Ink 2<br>#3d3830</span></div>
+        <div class="swatch" style="background:#7a7168"><span class="swatch-label light">Ink 3<br>#7a7168</span></div>
+        <div class="swatch" style="background:#b8b0a5"><span class="swatch-label dark">Ink 4<br>#b8b0a5</span></div>
+        <div class="swatch" style="background:#f5f0e8"><span class="swatch-label dark">Parchment<br>#f5f0e8</span></div>
+        <div class="swatch" style="background:#ede7d9"><span class="swatch-label dark">Parchment 2<br>#ede7d9</span></div>
+      </div>
+      <div class="palette-row">
+        <div class="swatch" style="background:#c4922a;flex:2"><span class="swatch-label dark">Gold — Primary<br>#c4922a</span></div>
+        <div class="swatch" style="background:#e8b84b;flex:1.5"><span class="swatch-label dark">Gold Light<br>#e8b84b</span></div>
+        <div class="swatch" style="background:#f5e8cc;flex:1"><span class="swatch-label dark">Gold Pale<br>#f5e8cc</span></div>
+        <div class="swatch" style="background:#1e5c5c;flex:2"><span class="swatch-label light">Teal — Secondary<br>#1e5c5c</span></div>
+        <div class="swatch" style="background:#2d8080;flex:1.5"><span class="swatch-label light">Teal Light<br>#2d8080</span></div>
+        <div class="swatch" style="background:#d4eaea;flex:1"><span class="swatch-label dark">Teal Pale<br>#d4eaea</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-3);font-weight:300;line-height:1.7;margin-top:8px">
+        <strong style="font-weight:500">Rationale:</strong> Ink and parchment evoke deliberateness and permanence — the act of writing something down with intention. Gold signals value and command without aggression. Teal provides a calm, focused accent for status and success states. Together they feel sophisticated without being corporate.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── APP PREVIEW ── -->
+<section class="app-section">
+  <div class="section-label">App Preview</div>
+  <p style="font-size:14px;color:var(--ink-3);font-weight:300;max-width:480px;line-height:1.7;margin-bottom:48px">
+    The same app you've built, re-skinned with the Irada brand. Dark mode as the primary interface — feels deliberate, focused, professional.
+  </p>
+
+  <div class="app-preview">
+    <div class="app-bar">
+      <div class="app-dots">
+        <div class="app-dot"></div>
+        <div class="app-dot"></div>
+        <div class="app-dot"></div>
+      </div>
+      <div class="app-url">irada.app</div>
+    </div>
+    <div class="app-inner">
+      <div class="app-sidebar">
+        <div class="app-logo-inner">
+          <div class="app-logo-text">Irad<em>a</em></div>
+        </div>
+        <div class="app-sb-label">Views</div>
+        <div class="app-sb-item">⏱ Plan My Day</div>
+        <div class="app-sb-item active">📅 Today</div>
+        <div class="app-sb-item">📋 All Tasks</div>
+        <div class="app-sb-item">⊞ Matrix</div>
+        <div class="app-sb-item">📆 Calendar</div>
+        <div class="app-sb-item">🌱 Habits</div>
+        <div class="app-sb-label">Projects</div>
+        <div class="app-sb-proj"><div class="app-sb-dot" style="background:#8b5cf6"></div>Work</div>
+        <div class="app-sb-proj"><div class="app-sb-dot" style="background:#3b82f6"></div>Personal</div>
+        <div class="app-sb-proj"><div class="app-sb-dot" style="background:#c4922a"></div>Climate Fund</div>
+      </div>
+      <div class="app-main">
+        <div class="app-topbar">
+          <div>
+            <div class="app-page-title">Today</div>
+            <div class="app-page-sub">Monday, April 28 · 4 tasks</div>
+          </div>
+          <button class="app-sync-btn">⟳ Sync All</button>
+        </div>
+        <div class="app-section-hdr">Focus tasks</div>
+        <div class="app-task">
+          <div class="app-task-pip" style="background:#ef4444"></div>
+          <div class="app-task-chk"></div>
+          <div class="app-task-name">Review Q2 climate fund pipeline</div>
+          <div class="app-task-due today">Today</div>
+        </div>
+        <div class="app-task">
+          <div class="app-task-pip" style="background:#f97316"></div>
+          <div class="app-task-chk"></div>
+          <div class="app-task-name">Prepare IDB stakeholder brief</div>
+          <div class="app-task-due today">Today</div>
+        </div>
+        <div class="app-task">
+          <div class="app-task-pip" style="background:#3b82f6"></div>
+          <div class="app-task-chk"></div>
+          <div class="app-task-name">Record podcast intro — Episode 42</div>
+          <div class="app-task-due" style="color:rgba(255,255,255,0.25)">Tomorrow</div>
+        </div>
+        <div class="app-task">
+          <div class="app-task-pip" style="background:#9ca3af"></div>
+          <div class="app-task-chk done"></div>
+          <div class="app-task-name done">Send consulting proposal to client</div>
+          <div class="app-task-due" style="color:rgba(255,255,255,0.15)">Done</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TAGLINES ── -->
+<section class="tagline-section">
+  <div class="section-label">Tagline Options</div>
+  <div class="tagline-grid">
+    <div class="tagline-card">
+      <div class="tagline-text"><em>Direct</em> your will.</div>
+      <div class="tagline-note">Literal translation. Short, commanding, philosophical. Works as a one-liner under the logo.</div>
+    </div>
+    <div class="tagline-card">
+      <div class="tagline-text">Clarity is a <em>decision.</em></div>
+      <div class="tagline-note">Positions Irada as the tool for people who choose to operate with intention rather than react to noise.</div>
+    </div>
+    <div class="tagline-card">
+      <div class="tagline-text">Built for people who <em>execute.</em></div>
+      <div class="tagline-note">Direct, professional, speaks to your target user — consultants, finance professionals, operators.</div>
+    </div>
+    <div class="tagline-card">
+      <div class="tagline-text">Your work, <em>deliberate.</em></div>
+      <div class="tagline-note">Softer positioning. Deliberate work vs reactive work — a distinction your audience will recognise immediately.</div>
+    </div>
+    <div class="tagline-card">
+      <div class="tagline-text">Command your <em>day.</em></div>
+      <div class="tagline-note">Most direct. Strong, no ambiguity. Works well in advertising and social context.</div>
+    </div>
+    <div class="tagline-card">
+      <div class="tagline-text">Where intention <em>becomes</em> execution.</div>
+      <div class="tagline-note">Longer but captures the product's core promise — the gap between planning and doing. Strongest for a landing page hero.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CLOSE ── -->
+<div class="closing">
+  <div class="closing-wordmark">Irad<em>a</em></div>
+  <div class="closing-urdu">إرادة</div>
+  <div class="closing-def">Arabic · Urdu · Persian &nbsp;/&nbsp; The deliberate direction of will toward a chosen purpose</div>
+</div>
+
+</body>
+</html>
