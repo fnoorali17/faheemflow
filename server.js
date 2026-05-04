@@ -98,7 +98,7 @@ app.use(session({
   secret: SESSION_SECRET, resave: false, saveUninitialized: false,
   cookie: { maxAge: 30*24*60*60*1000, httpOnly: true, sameSite: 'lax' }
 }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const requireAuth = (req, res, next) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not authenticated' });
@@ -635,8 +635,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname,'public','landing.html'));
 });
 // /login → always serve the app shell (handles ?reset= and other URL params)
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname,'public','app.html')));
 // Everything else → app (handles /?reset=token, /?settings=1, etc.)
-app.get('*', (req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname,'public','app.html')));
 
 app.listen(PORT, () => console.log(`Irada running at http://localhost:${PORT}`));
