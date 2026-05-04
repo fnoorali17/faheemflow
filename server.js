@@ -617,12 +617,17 @@ db.exec(`CREATE TABLE IF NOT EXISTS waitlist (
   email TEXT UNIQUE NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 )`);
-app.post('/api/waitlist', (req, res) => {
+app.post('/api/waitlist', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
   try {
     db.prepare('INSERT OR IGNORE INTO waitlist (email) VALUES (?)').run(email.toLowerCase().trim());
     console.log(`Waitlist signup: ${email}`);
+    sendEmail('FNoorali@gmail.com', 'New Irada waitlist signup',
+      `<p style="font-family:sans-serif;font-size:15px;color:#1a1714">
+        New signup: <strong>${email}</strong>
+      </p>`
+    );
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: 'Could not save email' }); }
 });
