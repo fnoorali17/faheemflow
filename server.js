@@ -611,6 +611,15 @@ app.post('/api/habits/:id/log', requireAuth, (req, res) => {
   res.json({ok:true});
 });
 
+// ADMIN: test email
+app.get('/admin/test-email', async (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  const ok = await sendEmail('FNoorali@gmail.com', 'Irada test email',
+    `<p style="font-family:sans-serif;font-size:15px;color:#1a1714">Test email from Irada. Resend is working.</p>`
+  );
+  res.json({ ok, resend_key_set: !!RESEND_API_KEY, from: FROM_EMAIL });
+});
+
 // ADMIN: view waitlist
 app.get('/admin/waitlist', (req, res) => {
   if (req.query.secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
