@@ -630,10 +630,20 @@ app.post('/api/waitlist', async (req, res) => {
   try {
     db.prepare('INSERT OR IGNORE INTO waitlist (email) VALUES (?)').run(email.toLowerCase().trim());
     console.log(`Waitlist signup: ${email}`);
+    const ts = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
     sendEmail('FNoorali@gmail.com', 'New Irada waitlist signup',
-      `<p style="font-family:sans-serif;font-size:15px;color:#1a1714">
-        New signup: <strong>${email}</strong>
-      </p>`
+      `<pre style="font-family:monospace;font-size:13px;color:#1a1714;line-height:1.7">Someone just joined the Irada waitlist.
+
+Email: ${email}
+Time:  ${ts}
+
+To invite them run:
+curl -X POST https://irada.work/admin/invite-user \\
+  -H 'Content-Type: application/json' \\
+  -d '{"adminSecret":"admin123","email":"${email}","name":"Friend"}'
+
+View full waitlist:
+curl https://irada.work/admin/waitlist?secret=admin123</pre>`
     );
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: 'Could not save email' }); }
