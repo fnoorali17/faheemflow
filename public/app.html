@@ -479,6 +479,15 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 /* SECTION DRAG */
 .sbody.sec-dragover{background:rgba(196,146,42,.06);outline:2px dashed #c4922a;outline-offset:-4px;border-radius:6px}
 .ti.sec-dragging{opacity:.4}
+/* KEYBOARD HINT */
+.kb-hint{font-size:10px;color:var(--t3);font-family:monospace;letter-spacing:.02em;flex-shrink:0;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--bg)}
+@media(max-width:700px){.kb-hint{display:none}}
+/* MOBILE FAB */
+.fab{display:none;position:fixed;bottom:calc(20px + var(--sb));right:20px;width:56px;height:56px;border-radius:50%;background:#c4922a;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);align-items:center;justify-content:center;z-index:200;font-size:32px;font-weight:300;line-height:1;transition:opacity .15s,transform .15s}
+.fab:hover{opacity:.9;transform:scale(1.05)}
+.fab:active{transform:scale(.95)}
+@media(max-width:700px){.fab{display:flex}}
+.fab.fab-hidden{display:none!important}
 /* JOURNAL */
 .journal-wrap{flex:1;display:flex;overflow:hidden;min-height:0}
 .journal-left{width:300px;min-width:260px;border-right:1.5px solid var(--border);display:flex;flex-direction:column;background:var(--surface);flex-shrink:0}
@@ -765,6 +774,7 @@ html.dark .journal-right{background:#221f1b}
         <button class="syncbtn" id="syncallbtn" onclick="syncAll()">⟳ <span id="syncalllbl">Sync All</span></button>
         <button class="bsm bcnl" id="imp-btn" style="display:none" onclick="openImp()">⬇ Import</button>
         <button class="bpri" id="add-btn" onclick="openAdd()">+ Add task</button>
+        <span class="kb-hint" id="add-kb-hint">⌘N</span>
       </div>
     </div>
     <div id="pobar" style="display:none" class="pobar">
@@ -800,6 +810,7 @@ html.dark .journal-right{background:#221f1b}
       <div class="plinf" id="plinf">Use ⏱ on tasks to add them here</div>
     </div>
   </div>
+  <button class="fab" id="fab" onclick="openAdd()" aria-label="Add task">+</button>
 </div>
 
 <!-- Modals -->
@@ -1230,6 +1241,17 @@ function setProjV(pid){view=pid;tagFilter=null;editId=null;document.querySelecto
 function setSecV(pid,sid){view='sec:'+sid;tagFilter=null;editId=null;document.querySelectorAll('.ni,.tnav,.pr,.sch').forEach(i=>i.classList.remove('on'));document.querySelector(`.sch[data-sid="${sid}"]`)?.classList.add('on');closeSB();render();}
 
 // ── ADD TASK ─────────────────────────────────────────────────
+const FAB_HIDDEN_VIEWS=new Set(['habits','matrix','calendar','settings','journal','deleted','plan']);
+function updateFAB(){
+  const fab=document.getElementById('fab');if(!fab)return;
+  const tawOpen=!!document.getElementById('taw')?.classList.contains('open');
+  const addBtnHidden=document.getElementById('add-btn')?.style.display==='none';
+  if(tawOpen||FAB_HIDDEN_VIEWS.has(view)||addBtnHidden)fab.classList.add('fab-hidden');
+  else fab.classList.remove('fab-hidden');
+  // Also hide/show the keyboard hint
+  const hint=document.getElementById('add-kb-hint');
+  if(hint)hint.style.display=addBtnHidden?'none':'';
+}
 function openAdd(pid,sid){
   const w=document.getElementById('taw');w.classList.add('open');
   // Auto-detect project/section from current view when not explicitly provided
@@ -1243,9 +1265,17 @@ function openAdd(pid,sid){
   }
   refProjSel(pid);if(sid)document.getElementById('a-sec').value=sid;
   document.getElementById('a-dt').value='';
+  document.getElementById('fab')?.classList.add('fab-hidden');
   setTimeout(()=>document.getElementById('add-in').focus(),80);
 }
-function closeAdd(){document.getElementById('taw').classList.remove('open');document.getElementById('add-in').value='';const an=document.getElementById('a-notes');if(an)an.value='';document.getElementById('tagpre').innerHTML='';document.getElementById('tsug').classList.remove('open');}
+function closeAdd(){
+  document.getElementById('taw').classList.remove('open');
+  document.getElementById('add-in').value='';
+  const an=document.getElementById('a-notes');if(an)an.value='';
+  document.getElementById('tagpre').innerHTML='';
+  document.getElementById('tsug').classList.remove('open');
+  updateFAB();
+}
 function refProjSel(pid){
   const s=document.getElementById('a-proj');
   s.innerHTML='<option value="">No project</option>'+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -1266,6 +1296,31 @@ AI.addEventListener('input',()=>{
 function inTag(t){AI.value=AI.value.replace(/#[a-zA-Z0-9_]*$/,'#'+t+' ');SB.classList.remove('open');AI.focus();AI.dispatchEvent(new Event('input'));}
 document.addEventListener('click',e=>{if(!AI.contains(e.target)&&!SB.contains(e.target))SB.classList.remove('open');});
 AI.addEventListener('keydown',e=>{if(e.key==='Enter'&&!SB.classList.contains('open'))saveTask();if(e.key==='Escape')closeAdd();});
+
+// Global keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  const inInput=e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'||e.target.isContentEditable;
+  const tawOpen=!!document.getElementById('taw')?.classList.contains('open');
+  // Cmd+N (Mac) / Ctrl+N (Win/Linux) — open add task
+  if((e.metaKey||e.ctrlKey)&&e.key==='n'){
+    if(!FAB_HIDDEN_VIEWS.has(view)&&document.getElementById('add-btn')?.style.display!=='none'){
+      e.preventDefault();
+      if(tawOpen){closeAdd();}else{openAdd();}
+    }
+    return;
+  }
+  // + key when not in an input — open add task
+  if(e.key==='+'&&!inInput&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
+    if(!FAB_HIDDEN_VIEWS.has(view)&&document.getElementById('add-btn')?.style.display!=='none'&&!tawOpen){
+      e.preventDefault();openAdd();
+    }
+    return;
+  }
+  // Escape — close add task form (global fallback, input-level handler already handles focused case)
+  if(e.key==='Escape'&&tawOpen&&!inInput){
+    closeAdd();
+  }
+});
 async function saveTask(){
   const raw=AI.value.trim();if(!raw)return;
   const task={id:uid(),name:stripTags(raw)||raw,notes:document.getElementById('a-notes')?.value.trim()||'',due_date:document.getElementById('a-dt').value||null,
@@ -1670,6 +1725,7 @@ function render(){
   const t=td(),area=document.getElementById('tarea');
   area.style.cssText='';
   renderSFBar();
+  updateFAB();
   if(view==='matrix'){renderMatrix();updTitle();renderSidebar();return;}
   if(view==='plan'){renderPlanV();updTitle();renderSidebar();return;}
   if(view==='habits'){renderHabits();updTitle();renderSidebar();return;}
