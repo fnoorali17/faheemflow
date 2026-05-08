@@ -61,7 +61,8 @@ db.exec(`
     is_urgent INTEGER DEFAULT 0, is_important INTEGER DEFAULT 0,
     pomos INTEGER DEFAULT 1, today_pick INTEGER DEFAULT 0,
     gcal_event_id TEXT, todoist_task_id TEXT, ticktick_task_id TEXT,
-    sort_order INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now'))
+    sort_order INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')),
+    is_deleted INTEGER DEFAULT 0, deleted_at TEXT
   );
   CREATE TABLE IF NOT EXISTS habits (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -71,6 +72,17 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS habit_logs (
     habit_id TEXT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
     log_date TEXT NOT NULL, PRIMARY KEY (habit_id, log_date)
+  );
+  CREATE TABLE IF NOT EXISTS journal_entries (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    entry_date TEXT NOT NULL,
+    title TEXT,
+    body TEXT NOT NULL DEFAULT '',
+    mood TEXT,
+    word_count INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
   );
 `);
 
@@ -89,7 +101,16 @@ db.exec(`
   'ALTER TABLE users ADD COLUMN theme TEXT DEFAULT \'light\'',
   'ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ""',
   'ALTER TABLE tasks ADD COLUMN ticktick_task_id TEXT',
+  'ALTER TABLE tasks ADD COLUMN is_deleted INTEGER DEFAULT 0',
+  'ALTER TABLE tasks ADD COLUMN deleted_at TEXT',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
+
+// Cleanup: permanently delete tasks soft-deleted more than 30 days ago
+try {
+  const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  const cleaned = db.prepare('DELETE FROM tasks WHERE is_deleted=1 AND deleted_at < ?').run(cutoff30);
+  if (cleaned.changes > 0) console.log(`Cleanup: permanently removed ${cleaned.changes} task(s) deleted before ${cutoff30.slice(0,10)}`);
+} catch(e) { console.error('Cleanup error:', e.message); }
 
 app.use(cors());
 app.use(express.json());
@@ -110,6 +131,7 @@ const parseTask = row => ({
   ...row, tags: JSON.parse(row.tags || '[]'),
   is_done: !!row.is_done, is_urgent: !!row.is_urgent,
   is_important: !!row.is_important, today_pick: !!row.today_pick,
+  is_deleted: !!row.is_deleted,
   notes: row.notes || '',
 });
 
@@ -155,7 +177,7 @@ app.get('/api/auth/me', (req, res) => {
   if (req.session.check_rollover || (user.last_login_date && user.last_login_date !== todayStr)) {
     needs_rollover = true;
     incomplete_today_tasks = db.prepare(
-      'SELECT * FROM tasks WHERE user_id=? AND today_pick=1 AND is_done=0 AND parent_id IS NULL'
+      'SELECT * FROM tasks WHERE user_id=? AND today_pick=1 AND is_done=0 AND parent_id IS NULL AND (is_deleted=0 OR is_deleted IS NULL)'
     ).all(req.session.userId).map(parseTask);
   }
   // Update last_login_date to today
@@ -425,7 +447,7 @@ app.get('/api/gcal/events', requireAuth, async (req, res) => {
 app.post('/api/gcal/sync', requireAuth, async (req, res) => {
   const cal = getUserGCal(req.session.userId);
   if (!cal) return res.status(400).json({ error: 'Google Calendar not connected. Go to Settings to connect.' });
-  const tasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.due_date IS NOT NULL AND t.is_done=0 AND t.parent_id IS NULL').all(req.session.userId).map(parseTask);
+  const tasks = db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.due_date IS NOT NULL AND t.is_done=0 AND t.parent_id IS NULL AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(req.session.userId).map(parseTask);
   const results = { created: 0, updated: 0, errors: [] };
   for (const task of tasks) {
     const tags=(task.tags||[]).length?`Tags: ${task.tags.map(t=>'#'+t).join(' ')}`:'';
@@ -468,7 +490,7 @@ app.post('/api/todoist/sync', requireAuth, async (req, res) => {
     const tdProjByName=Object.fromEntries(tdProjects.map(p=>[p.name.toLowerCase(),p.id]));
     const tdProjById=Object.fromEntries(tdProjects.map(p=>[p.id,p.name]));
     let pushed=0,pulled=0;
-    const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL').all(userId).map(parseTask);
+    const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
     for(const task of localTasks){
       let tdProjId=null;
       if(task.proj_name){tdProjId=tdProjByName[task.proj_name.toLowerCase()];if(!tdProjId){const np=await tdReq(token,'POST','/projects',{name:task.proj_name});tdProjId=np.id;tdProjByName[task.proj_name.toLowerCase()]=tdProjId;db.prepare('UPDATE projects SET todoist_project_id=? WHERE user_id=? AND name=?').run(tdProjId,userId,task.proj_name);}}
@@ -515,7 +537,7 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[p.name.toLowerCase(),p.id]));
     const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,p.name]));
     let pushed=0,pulled=0;
-    const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0').all(userId).map(parseTask);
+    const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0 AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
     for(const task of localTasks){
       let ttProjId=null;
       if(task.proj_name){ttProjId=ttProjByName[task.proj_name.toLowerCase()];if(!ttProjId){try{const np=await ttReq(token,'POST','/project',{name:task.proj_name});ttProjId=np.id;ttProjByName[task.proj_name.toLowerCase()]=ttProjId;}catch(e){}}}
@@ -582,7 +604,11 @@ app.delete('/api/sections/:id', requireAuth, (req, res) => {
 });
 
 // TASKS
-app.get('/api/tasks', requireAuth, (req, res) => res.json(db.prepare('SELECT * FROM tasks WHERE user_id=? ORDER BY priority,due_date,created_at').all(req.session.userId).map(parseTask)));
+app.get('/api/tasks', requireAuth, (req, res) => res.json(db.prepare('SELECT * FROM tasks WHERE user_id=? AND (is_deleted=0 OR is_deleted IS NULL) ORDER BY priority,due_date,created_at').all(req.session.userId).map(parseTask)));
+app.get('/api/tasks/deleted', requireAuth, (req, res) => {
+  const cutoff = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  res.json(db.prepare('SELECT * FROM tasks WHERE user_id=? AND is_deleted=1 AND (deleted_at IS NULL OR deleted_at > ?) ORDER BY deleted_at DESC').all(req.session.userId, cutoff).map(parseTask));
+});
 app.post('/api/tasks', requireAuth, (req, res) => {
   const {id,name,notes,due_date,priority,project_id,section_id,tags,is_urgent,is_important,pomos,parent_id}=req.body;
   db.prepare('INSERT INTO tasks (id,user_id,parent_id,name,notes,due_date,priority,project_id,section_id,tags,is_urgent,is_important,pomos,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,req.session.userId,parent_id||null,name,notes||'',due_date||null,priority||3,project_id||null,section_id||null,JSON.stringify(tags||[]),is_urgent?1:0,is_important?1:0,pomos||1,db.prepare('SELECT COUNT(*) as c FROM tasks WHERE user_id=?').get(req.session.userId).c);
@@ -593,7 +619,50 @@ app.patch('/api/tasks/:id', requireAuth, (req, res) => {
   db.prepare(`UPDATE tasks SET name=COALESCE(?,name),notes=COALESCE(?,notes),due_date=?,priority=COALESCE(?,priority),project_id=?,section_id=?,tags=COALESCE(?,tags),is_done=COALESCE(?,is_done),is_urgent=COALESCE(?,is_urgent),is_important=COALESCE(?,is_important),pomos=COALESCE(?,pomos),today_pick=COALESCE(?,today_pick) WHERE id=? AND user_id=?`).run(t.name??null,t.notes??null,'due_date'in t?(t.due_date||null):undefined,t.priority??null,'project_id'in t?(t.project_id||null):undefined,'section_id'in t?(t.section_id||null):undefined,t.tags?JSON.stringify(t.tags):null,t.is_done!==undefined?(t.is_done?1:0):null,t.is_urgent!==undefined?(t.is_urgent?1:0):null,t.is_important!==undefined?(t.is_important?1:0):null,t.pomos??null,t.today_pick!==undefined?(t.today_pick?1:0):null,req.params.id,req.session.userId);
   res.json({ok:true});
 });
-app.delete('/api/tasks/:id', requireAuth, (req, res) => { db.prepare('DELETE FROM tasks WHERE id=? AND user_id=?').run(req.params.id,req.session.userId); res.json({ok:true}); });
+app.post('/api/tasks/:id/restore', requireAuth, (req, res) => {
+  db.prepare('UPDATE tasks SET is_deleted=0, deleted_at=NULL WHERE id=? AND user_id=?').run(req.params.id, req.session.userId);
+  db.prepare('UPDATE tasks SET is_deleted=0, deleted_at=NULL WHERE parent_id=? AND user_id=?').run(req.params.id, req.session.userId);
+  res.json({ok:true});
+});
+app.delete('/api/tasks/:id/permanent', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM tasks WHERE id=? AND user_id=?').run(req.params.id, req.session.userId);
+  res.json({ok:true});
+});
+app.delete('/api/tasks/:id', requireAuth, (req, res) => {
+  const ts = new Date().toISOString();
+  db.prepare('UPDATE tasks SET is_deleted=1, deleted_at=? WHERE id=? AND user_id=?').run(ts, req.params.id, req.session.userId);
+  db.prepare('UPDATE tasks SET is_deleted=1, deleted_at=? WHERE parent_id=? AND user_id=?').run(ts, req.params.id, req.session.userId);
+  res.json({ok:true});
+});
+
+// JOURNAL
+app.get('/api/journal', requireAuth, (req, res) => {
+  const entries = db.prepare('SELECT * FROM journal_entries WHERE user_id=? ORDER BY entry_date DESC, created_at DESC').all(req.session.userId);
+  res.json(entries);
+});
+app.get('/api/journal/date/:date', requireAuth, (req, res) => {
+  const entry = db.prepare('SELECT * FROM journal_entries WHERE user_id=? AND entry_date=?').get(req.session.userId, req.params.date);
+  res.json(entry || null);
+});
+app.post('/api/journal', requireAuth, (req, res) => {
+  const { entry_date, title, body, mood } = req.body;
+  if (!entry_date) return res.status(400).json({ error: 'entry_date required' });
+  const word_count = (body || '').trim().split(/\s+/).filter(Boolean).length;
+  const now = new Date().toISOString();
+  const existing = db.prepare('SELECT id FROM journal_entries WHERE user_id=? AND entry_date=?').get(req.session.userId, entry_date);
+  if (existing) {
+    db.prepare('UPDATE journal_entries SET title=?, body=?, mood=?, word_count=?, updated_at=? WHERE id=? AND user_id=?').run(title||null, body||'', mood||null, word_count, now, existing.id, req.session.userId);
+    res.json({ ok: true, id: existing.id });
+  } else {
+    const eid = uid();
+    db.prepare('INSERT INTO journal_entries (id,user_id,entry_date,title,body,mood,word_count) VALUES (?,?,?,?,?,?,?)').run(eid, req.session.userId, entry_date, title||null, body||'', mood||null, word_count);
+    res.json({ ok: true, id: eid });
+  }
+});
+app.delete('/api/journal/:id', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM journal_entries WHERE id=? AND user_id=?').run(req.params.id, req.session.userId);
+  res.json({ ok: true });
+});
 
 // HABITS
 app.get('/api/habits', requireAuth, (req, res) => {
