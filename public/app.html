@@ -148,14 +148,14 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .bwrn{background:var(--orange);border:none;color:#fff;padding:7px 14px;border-radius:var(--r);font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer}
 .bdanger{background:var(--danger);border:none;color:#fff;padding:7px 14px;border-radius:var(--r);font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer}
 
-/* POMO */
-.pobar{background:var(--text);color:#fff;padding:9px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.ponm{font-size:12px;opacity:.55;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.popg{width:36px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden;flex-shrink:0}
-.pofi{height:100%;background:var(--orange);border-radius:2px;transition:width 1s linear}
-.potm{font-size:18px;font-family:monospace;font-weight:500;letter-spacing:.05em;flex-shrink:0}
-.pobt{padding:3px 10px;border-radius:6px;font-size:12px;font-family:var(--font);font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff}
-.pobt.end{border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.2)}
+/* POMO — always dark ink bg regardless of theme */
+.pobar{background:#1a1714;color:#f5f0e8;padding:9px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.ponm{font-size:12px;color:rgba(245,240,232,.65);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.popg{width:36px;height:3px;background:rgba(245,240,232,.18);border-radius:2px;overflow:hidden;flex-shrink:0}
+.pofi{height:100%;background:#c95a1a;border-radius:2px;transition:width 1s linear}
+.potm{font-size:18px;font-family:monospace;font-weight:500;letter-spacing:.05em;flex-shrink:0;color:#f5f0e8}
+.pobt{padding:3px 10px;border-radius:6px;font-size:12px;font-family:var(--font);font-weight:600;cursor:pointer;border:1.5px solid rgba(245,240,232,.22);background:rgba(245,240,232,.08);color:#f5f0e8}
+.pobt.end{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.22);color:#f5f0e8}
 
 /* TASK INPUT */
 .taw{margin:12px 16px 0;background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--rl);display:none;position:relative;z-index:10;flex-shrink:0;box-shadow:0 2px 10px rgba(59,111,212,.1)}
@@ -329,7 +329,7 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .cal-cell.today{background:var(--al)}
 .cal-cell.selected{background:#f0f8f0;outline:2px solid var(--accent);outline-offset:-2px}
 .cal-day-num{font-size:13px;font-weight:600;color:var(--t2);margin-bottom:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
-.cal-cell.today .cal-day-num{background:var(--accent);color:#fff}
+.cal-cell.today .cal-day-num{background:var(--accent);color:#1a1714}
 .cal-task-dot{display:flex;align-items:center;gap:4px;margin-bottom:2px}
 .cal-task-pip{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .cal-task-name{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
@@ -356,7 +356,7 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .habgrid{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:12px}
 .habghdr{display:grid;border-bottom:2px solid var(--border);background:var(--bg)}
 .hghc{padding:8px 4px;text-align:center;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;border-right:1px solid var(--border)}
-.hghc:last-child{border-right:none}.hghc.tdc{color:var(--accent);background:var(--al)}
+.hghc:last-child{border-right:none}.hghc.tdc{color:var(--text);background:var(--al)}
 .habrow{display:grid;border-bottom:1px solid var(--border)}
 .habrow:last-child{border-bottom:none}
 .habnc{padding:10px 12px;display:flex;align-items:center;gap:8px;border-right:1px solid var(--border);min-width:0}
@@ -370,7 +370,7 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .hbt.del:hover{background:var(--dbg);color:var(--danger);border-color:#fca5a5}
 .habcl{display:flex;align-items:center;justify-content:center;border-right:1px solid var(--border);cursor:pointer;min-height:52px}
 .habcl:last-child{border-right:none}
-.habcl:hover{background:var(--gbg)}.habcl.tdc{background:#fafffe}
+.habcl:hover{background:var(--gbg)}.habcl.tdc{background:rgba(196,146,42,.06)}
 .habcl.fut{opacity:.25;cursor:default;pointer-events:none}
 .hcdot{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--bh);display:flex;align-items:center;justify-content:center}
 .hcdot.done{background:var(--green);border-color:var(--green)}
@@ -474,13 +474,14 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .imptog.on{background:var(--accent);border-color:var(--accent)}
 .impps{border:1.5px solid var(--border);border-radius:6px;padding:3px 6px;font-size:11px;font-family:var(--font);color:var(--t2);background:var(--bg);outline:none;cursor:pointer}
 
-.toast{position:fixed;bottom:calc(20px + var(--sb));left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 16px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:300;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+/* TOASTS — always dark ink bg so they read on both light and dark themes */
+.toast{position:fixed;bottom:calc(20px + var(--sb));left:50%;transform:translateX(-50%);background:#1a1714;color:#f5f0e8;padding:9px 16px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:300;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
 .toast.show{opacity:1}
 /* UNDO TOAST */
-.undo-toast{position:fixed;bottom:calc(62px + var(--sb));left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 16px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:299;pointer-events:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.undo-toast{position:fixed;bottom:calc(62px + var(--sb));left:50%;transform:translateX(-50%);background:#1a1714;color:#f5f0e8;padding:9px 16px;border-radius:var(--r);font-size:13px;opacity:0;transition:opacity .2s;z-index:299;pointer-events:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
 .undo-toast.show{opacity:1;pointer-events:auto}
-.undo-btn{padding:3px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-family:var(--font);cursor:pointer;font-weight:600;flex-shrink:0}
-.undo-btn:hover{background:rgba(255,255,255,.28)}
+.undo-btn{padding:3px 10px;border-radius:4px;border:1px solid rgba(245,240,232,.28);background:rgba(245,240,232,.12);color:#f5f0e8;font-size:12px;font-family:var(--font);cursor:pointer;font-weight:600;flex-shrink:0}
+.undo-btn:hover{background:rgba(245,240,232,.22)}
 /* SECTION DRAG */
 .sbody.sec-dragover{background:rgba(196,146,42,.06);outline:2px dashed #c4922a;outline-offset:-4px;border-radius:6px}
 .ti.sec-dragging{opacity:.4}
@@ -567,7 +568,7 @@ html.dark .journal-right{background:#221f1b}
 .cal-week-dayhdr:hover{background:var(--bg)}
 .cal-week-dayhdr.today-col{color:var(--accent);background:var(--al)}
 .cal-week-daynum{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:14px;font-weight:600;margin-top:2px}
-.cal-week-daynum.today{background:var(--accent);color:#fff}
+.cal-week-daynum.today{background:var(--accent);color:#1a1714}
 .cal-week-body{display:grid;grid-template-columns:48px repeat(7,1fr);flex:1;overflow-y:auto}
 .cal-week-timecol{border-right:1.5px solid var(--border)}
 .cal-week-timeslot{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;padding:2px 4px;font-size:10px;color:var(--t3);font-family:monospace}
@@ -594,8 +595,8 @@ html.dark .journal-right{background:#221f1b}
 .cal-year-mtitle{font-family:var(--fd);font-size:13px;font-weight:400;color:var(--text);margin-bottom:6px}
 .cal-year-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
 .cal-year-day{width:100%;aspect-ratio:1;border-radius:2px;font-size:8px;display:flex;align-items:center;justify-content:center;color:var(--t3)}
-.cal-year-day.has-tasks{background:var(--al);color:var(--accent);font-weight:600}
-.cal-year-day.today{background:var(--accent);color:#fff;font-weight:700}
+.cal-year-day.has-tasks{background:var(--al);color:#7a4f10;font-weight:600}
+.cal-year-day.today{background:var(--accent);color:#1a1714;font-weight:700}
 /* calendar side panel */
 .cal-side{position:absolute;right:0;top:0;bottom:0;width:300px;background:var(--surface);border-left:2px solid var(--border);display:flex;flex-direction:column;z-index:10;transform:translateX(100%);transition:transform .2s;overflow:hidden}
 .cal-side.open{transform:translateX(0)}
@@ -872,7 +873,7 @@ html.dark .journal-right{background:#221f1b}
 </div>
 
 <script>
-const PCOLS=['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
+const PCOLS=['#ef4444','#f97316','#b45309','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
 const STAGS=['urgent','meeting','review','followup','research','personal','idea','waiting'];
 const PC=['#ef4444','#f97316','#3b82f6','#9ca3af'];
 const PMIN=25;
@@ -1426,7 +1427,23 @@ function doUndo(){
   document.getElementById('undo-toast')?.classList.remove('show');
   if(fn)fn();
 }
-function getPSt(pid){const p=projects.find(p=>p.id===pid);if(!p)return{color:'#9ca3af',bg:'#9ca3af20',name:''};return{color:p.color,bg:p.color+'20',name:p.name};}
+function getPSt(pid){
+  const p=projects.find(p=>p.id===pid);
+  if(!p)return{color:'#5a5248',raw:'#5a5248',bg:'rgba(90,82,72,0.12)',name:''};
+  // Darken any color too light to read as text on white/parchment backgrounds.
+  // Perceived brightness (0-255) threshold: > 160 = too light.
+  const hex=p.color.replace('#','');
+  const r=parseInt(hex.slice(0,2),16)||0;
+  const g=parseInt(hex.slice(2,4),16)||0;
+  const b=parseInt(hex.slice(4,6),16)||0;
+  const bright=(r*299+g*587+b*114)/1000;
+  let textColor=p.color;
+  if(bright>160){
+    const dr=Math.round(r*0.48),dg=Math.round(g*0.48),db=Math.round(b*0.48);
+    textColor=`#${dr.toString(16).padStart(2,'0')}${dg.toString(16).padStart(2,'0')}${db.toString(16).padStart(2,'0')}`;
+  }
+  return{color:textColor, raw:p.color, bg:p.color+'1a', name:p.name};
+}
 
 // ── POMODORO ─────────────────────────────────────────────────
 function startPomo(id){
@@ -1833,7 +1850,7 @@ function sortCalItems(dayTasks,dayGcal){
 }
 function buildCalPills(d,dayTasks,dayGcal,viewType){
   const sorted=sortCalItems(dayTasks,dayGcal);
-  const taskPills=sorted.tasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-week-task" style="background:${ps.color}22;color:${ps.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${t.name}</div>`;}).join('');
+  const taskPills=sorted.tasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-week-task" style="background:${ps.raw}22;color:${ps.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${t.name}</div>`;}).join('');
   const allDayPills=sorted.allDayGcal.map(e=>`<div class="cal-week-gcal" style="background:${e.color}30;color:${e.color}">${e.title}</div>`).join('');
   const timedPills=sorted.timedGcal.map(e=>`<div class="cal-week-gcal" style="background:${e.color}30;color:${e.color}">${e.startTime.slice(11,16)} ${e.title}</div>`).join('');
   return{taskPills,gcalPills:allDayPills+timedPills};
@@ -1918,7 +1935,7 @@ function renderCalMonth(area,hdr){
     const allDayGcalHere=rawDayGcal.filter(e=>!e.startTime);
     const timedGcalHere=[...rawDayGcal.filter(e=>e.startTime)].sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
     const dayTasks=rawDayTasks;const MAX_SHOW=3;
-    const taskDots=dayTasks.slice(0,MAX_SHOW).map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${ps.color||'#9ca3af'}"></div><span class="cal-task-name">${t.name}</span></div>`;}).join('');
+    const taskDots=dayTasks.slice(0,MAX_SHOW).map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${ps.raw||'#9ca3af'}"></div><span class="cal-task-name">${t.name}</span></div>`;}).join('');
     const gcalDots=[...allDayGcalHere,...timedGcalHere].slice(0,2).map(e=>`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${e.color};opacity:.55"></div><span class="cal-task-name" style="font-style:italic;opacity:.65">${e.startTime?e.startTime.slice(11,16)+' ':''  }${e.title}</span></div>`).join('');
     const more=dayTasks.length>MAX_SHOW?`<div class="cal-more">+${dayTasks.length-MAX_SHOW} more</div>`:'';
     cells+=`<div class="cal-cell${!inMonth?' other-month':''}${isToday?' today':''}${isSel?' selected':''}" onclick="openCalPanel('${dateStr}')"><div class="cal-day-num">${date.getDate()}</div>${taskDots}${gcalDots}${more}</div>`;
@@ -1971,7 +1988,7 @@ function renderCalDay(area,hdr){
   const sortedTasks=[...rawTasks].sort((a,b)=>a.priority-b.priority);
   const allDayGcal=rawGcal.filter(e=>!e.startTime);
   const timedGcal=[...rawGcal.filter(e=>e.startTime)].sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
-  const taskBlocks=sortedTasks.map(tk=>{const ps=getPSt(tk.project_id);return`<div class="cal-day-task-block" style="background:${ps.color}20;color:${ps.color}">${tk.name}</div>`;}).join('');
+  const taskBlocks=sortedTasks.map(tk=>{const ps=getPSt(tk.project_id);return`<div class="cal-day-task-block" style="background:${ps.raw}20;color:${ps.color}">${tk.name}</div>`;}).join('');
   const allDayBlocks=allDayGcal.map(e=>`<div class="cal-day-gcal-block" style="background:${e.color}20;color:${e.color}">${e.title} <span style="font-size:9px;opacity:.7">(all day)</span></div>`).join('');
   const timedBlocks=timedGcal.map(e=>`<div class="cal-day-gcal-block" style="background:${e.color}20;color:${e.color}">${e.startTime.slice(11,16)} · ${e.title}</div>`).join('');
   const nowLine=nowPct!=null?`<div class="cal-day-now" style="top:${nowPct}%"></div>`:'';
@@ -2020,7 +2037,7 @@ function buildCalSidePanel(){
   const rawTasks=tasks.filter(t=>t.due_date===calPanelDate&&!t.parent_id);
   const rawGcal=gcalEvents.filter(e=>e.start===calPanelDate);
   const {tasks:sortedTasks,allDayGcal,timedGcal}=sortCalItems(rawTasks,rawGcal);
-  const taskRows=sortedTasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-side-ev"><div class="cal-side-pip" style="background:${ps.color||'#9ca3af'}"></div><div><div class="cal-side-name${t.is_done?' done':''}" style="${t.is_done?'text-decoration:line-through;color:var(--t3)':''}">${t.name}</div>${ps.name?`<div class="cal-side-sub">${ps.name}</div>`:''}</div></div>`;}).join('');
+  const taskRows=sortedTasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-side-ev"><div class="cal-side-pip" style="background:${ps.raw||'#9ca3af'}"></div><div><div class="cal-side-name${t.is_done?' done':''}" style="${t.is_done?'text-decoration:line-through;color:var(--t3)':''}">${t.name}</div>${ps.name?`<div class="cal-side-sub">${ps.name}</div>`:''}</div></div>`;}).join('');
   const allDayRows=allDayGcal.map(e=>`<div class="cal-side-ev gcal"><div class="cal-side-pip" style="background:${e.color}"></div><div><div class="cal-side-name">${e.title}</div><div class="cal-side-sub">All day</div></div></div>`).join('');
   const timedRows=timedGcal.map(e=>`<div class="cal-side-ev gcal"><div class="cal-side-pip" style="background:${e.color}"></div><div><div class="cal-side-name">${e.title}</div>${e.startTime?`<div class="cal-side-sub">${e.startTime.slice(11,16)}${e.endTime?' – '+e.endTime.slice(11,16):''}</div>`:''}</div></div>`).join('');
   const empty=!taskRows&&!allDayRows&&!timedRows?`<div style="font-size:13px;color:var(--t3);font-style:italic;padding:8px 0">No tasks or events</div>`:'';
