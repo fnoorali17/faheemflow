@@ -126,7 +126,12 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .tbl{display:flex;align-items:center;gap:10px;min-width:0}
 .mbtn{width:34px;height:34px;border:none;background:none;cursor:pointer;color:var(--t2);font-size:20px;display:none;align-items:center;justify-content:center;flex-shrink:0;border-radius:6px}
 .mbtn:hover{background:var(--bg)}
-@media(max-width:700px){.mbtn{display:flex}}
+@media(max-width:700px){
+  .mbtn{display:flex;width:44px;height:44px;border-radius:8px;font-size:0;flex-shrink:0}
+  .mbtn:active{background:rgba(0,0,0,.06)}
+  .mbtn svg{width:22px;height:18px;flex-shrink:0}
+  .topbar{padding-top:max(12px,env(safe-area-inset-top));padding-bottom:10px}
+}
 .ptit{font-family:var(--fd);font-size:17px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .psub{font-size:11px;color:var(--t3);margin-top:1px}
 .tbr{display:flex;align-items:center;gap:6px;flex-shrink:0}
@@ -764,7 +769,13 @@ html.dark .journal-right{background:#221f1b}
   <div class="main">
     <div class="topbar">
       <div class="tbl">
-        <button class="mbtn" onclick="openSB()">☰</button>
+        <button class="mbtn" onclick="openSB()" aria-label="Open menu">
+          <svg viewBox="0 0 22 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect y="0" width="22" height="2" rx="1" fill="currentColor"/>
+            <rect y="8" width="22" height="2" rx="1" fill="currentColor"/>
+            <rect y="16" width="22" height="2" rx="1" fill="currentColor"/>
+          </svg>
+        </button>
         <div>
           <div class="ptit" id="v-title">Today</div>
           <div class="psub" id="v-sub"></div>
