@@ -86,6 +86,38 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS people (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    organization TEXT,
+    role TEXT,
+    email TEXT,
+    phone TEXT,
+    type TEXT DEFAULT 'professional',
+    notes TEXT DEFAULT '',
+    follow_up_date TEXT,
+    follow_up_frequency INTEGER,
+    last_contacted TEXT,
+    status TEXT DEFAULT 'active',
+    avatar_color TEXT DEFAULT '#c4922a',
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS interactions (
+    id TEXT PRIMARY KEY,
+    person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    date TEXT NOT NULL,
+    notes TEXT DEFAULT '',
+    linked_task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Migrations for existing databases
 [
   'ALTER TABLE users ADD COLUMN google_id TEXT',
@@ -105,6 +137,7 @@ db.exec(`
   'ALTER TABLE tasks ADD COLUMN deleted_at TEXT',
   'ALTER TABLE tasks ADD COLUMN in_matrix INTEGER DEFAULT 1',
   'ALTER TABLE users ADD COLUMN user_project_mappings TEXT DEFAULT \'[]\'',
+  'ALTER TABLE tasks ADD COLUMN linked_person_id TEXT',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
 // Cleanup: permanently delete tasks soft-deleted more than 30 days ago
@@ -138,6 +171,23 @@ const parseTask = row => ({
   in_matrix: row.in_matrix === undefined ? 1 : (row.in_matrix === 0 ? 0 : 1),
   notes: row.notes || '',
 });
+
+function personStatus(p) {
+  const t = today();
+  const diffDays = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);
+  if (p.follow_up_date) {
+    const d = diffDays(p.follow_up_date, t);
+    if (d < 0) return { follow_up_status: 'overdue', follow_up_status_label: 'Overdue', days_until_followup: d };
+    if (d <= 7) return { follow_up_status: 'due_soon', follow_up_status_label: 'Due soon', days_until_followup: d };
+    return { follow_up_status: 'upcoming', follow_up_status_label: 'Upcoming', days_until_followup: d };
+  }
+  if (p.last_contacted) {
+    const d = diffDays(t, p.last_contacted);
+    if (d > 90) return { follow_up_status: 'dormant', follow_up_status_label: 'Dormant', days_since_contact: d };
+    return { follow_up_status: 'active', follow_up_status_label: 'Active', days_since_contact: d };
+  }
+  return { follow_up_status: 'never', follow_up_status_label: 'Not yet contacted' };
+}
 
 // EMAIL
 async function sendEmail(to, subject, html) {
@@ -632,7 +682,7 @@ app.delete('/api/sections/:id', requireAuth, (req, res) => {
 });
 
 // TASKS
-app.get('/api/tasks', requireAuth, (req, res) => res.json(db.prepare('SELECT * FROM tasks WHERE user_id=? AND (is_deleted=0 OR is_deleted IS NULL) ORDER BY priority,due_date,created_at').all(req.session.userId).map(parseTask)));
+app.get('/api/tasks', requireAuth, (req, res) => res.json(db.prepare('SELECT t.*, per.name as linked_person_name FROM tasks t LEFT JOIN people per ON t.linked_person_id=per.id WHERE t.user_id=? AND (t.is_deleted=0 OR t.is_deleted IS NULL) ORDER BY t.priority,t.due_date,t.created_at').all(req.session.userId).map(parseTask)));
 app.get('/api/tasks/deleted', requireAuth, (req, res) => {
   const cutoff = new Date(Date.now() - 30*24*60*60*1000).toISOString();
   res.json(db.prepare('SELECT * FROM tasks WHERE user_id=? AND is_deleted=1 AND (deleted_at IS NULL OR deleted_at > ?) ORDER BY deleted_at DESC').all(req.session.userId, cutoff).map(parseTask));
@@ -715,6 +765,70 @@ app.get('/admin/test-email', async (req, res) => {
     `<p style="font-family:sans-serif;font-size:15px;color:#1a1714">Test email from Irada. Resend is working.</p>`
   );
   res.json({ ok, resend_key_set: !!RESEND_API_KEY, from: FROM_EMAIL });
+});
+
+// PEOPLE
+app.get('/api/people', requireAuth, (req, res) => {
+  const people = db.prepare("SELECT * FROM people WHERE user_id=? AND status!='archived' ORDER BY sort_order,name").all(req.session.userId);
+  res.json(people.map(p => ({...p, ...personStatus(p)})));
+});
+app.get('/api/people/:id', requireAuth, (req, res) => {
+  const p = db.prepare('SELECT * FROM people WHERE id=? AND user_id=?').get(req.params.id, req.session.userId);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  const interactions = db.prepare('SELECT * FROM interactions WHERE person_id=? ORDER BY date DESC,created_at DESC').all(req.params.id);
+  res.json({...p, ...personStatus(p), interactions});
+});
+app.post('/api/people', requireAuth, (req, res) => {
+  const { name, organization, role, email, phone, type, notes, follow_up_date, follow_up_frequency, avatar_color } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  const id = uid();
+  const cnt = db.prepare('SELECT COUNT(*) as c FROM people WHERE user_id=?').get(req.session.userId).c;
+  db.prepare('INSERT INTO people (id,user_id,name,organization,role,email,phone,type,notes,follow_up_date,follow_up_frequency,avatar_color,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id, req.session.userId, name, organization||null, role||null, email||null, phone||null, type||'professional', notes||'', follow_up_date||null, follow_up_frequency||null, avatar_color||'#c4922a', cnt);
+  const p = db.prepare('SELECT * FROM people WHERE id=?').get(id);
+  res.json({...p, ...personStatus(p)});
+});
+app.patch('/api/people/:id', requireAuth, (req, res) => {
+  const { name, organization, role, email, phone, type, notes, follow_up_date, follow_up_frequency, avatar_color, status } = req.body;
+  const existing = db.prepare('SELECT id FROM people WHERE id=? AND user_id=?').get(req.params.id, req.session.userId);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const now = new Date().toISOString();
+  const updates = ['updated_at=?'], vals = [now];
+  if (name !== undefined) { updates.push('name=?'); vals.push(name); }
+  if (organization !== undefined) { updates.push('organization=?'); vals.push(organization||null); }
+  if (role !== undefined) { updates.push('role=?'); vals.push(role||null); }
+  if (email !== undefined) { updates.push('email=?'); vals.push(email||null); }
+  if (phone !== undefined) { updates.push('phone=?'); vals.push(phone||null); }
+  if (type !== undefined) { updates.push('type=?'); vals.push(type); }
+  if (notes !== undefined) { updates.push('notes=?'); vals.push(notes||''); }
+  if (follow_up_date !== undefined) { updates.push('follow_up_date=?'); vals.push(follow_up_date||null); }
+  if (follow_up_frequency !== undefined) { updates.push('follow_up_frequency=?'); vals.push(follow_up_frequency||null); }
+  if (avatar_color !== undefined) { updates.push('avatar_color=?'); vals.push(avatar_color); }
+  if (status !== undefined) { updates.push('status=?'); vals.push(status); }
+  vals.push(req.params.id, req.session.userId);
+  db.prepare(`UPDATE people SET ${updates.join(',')} WHERE id=? AND user_id=?`).run(...vals);
+  const p = db.prepare('SELECT * FROM people WHERE id=?').get(req.params.id);
+  res.json({...p, ...personStatus(p)});
+});
+app.delete('/api/people/:id', requireAuth, (req, res) => {
+  db.prepare("UPDATE people SET status='archived',updated_at=? WHERE id=? AND user_id=?").run(new Date().toISOString(), req.params.id, req.session.userId);
+  res.json({ ok: true });
+});
+
+// INTERACTIONS
+app.get('/api/people/:id/interactions', requireAuth, (req, res) => {
+  res.json(db.prepare('SELECT * FROM interactions WHERE person_id=? AND user_id=? ORDER BY date DESC,created_at DESC').all(req.params.id, req.session.userId));
+});
+app.post('/api/people/:id/interactions', requireAuth, (req, res) => {
+  const { type, date, notes, linked_task_id } = req.body;
+  if (!type || !date) return res.status(400).json({ error: 'type and date required' });
+  const iid = uid();
+  db.prepare('INSERT INTO interactions (id,person_id,user_id,type,date,notes,linked_task_id) VALUES (?,?,?,?,?,?,?)').run(iid, req.params.id, req.session.userId, type, date, notes||'', linked_task_id||null);
+  db.prepare('UPDATE people SET last_contacted=?,updated_at=? WHERE id=? AND user_id=? AND (last_contacted IS NULL OR last_contacted < ?)').run(date, new Date().toISOString(), req.params.id, req.session.userId, date);
+  res.json(db.prepare('SELECT * FROM interactions WHERE id=?').get(iid));
+});
+app.delete('/api/interactions/:id', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM interactions WHERE id=? AND user_id=?').run(req.params.id, req.session.userId);
+  res.json({ ok: true });
 });
 
 // ADMIN: view waitlist

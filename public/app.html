@@ -699,6 +699,81 @@ html.dark .journal-right{background:#221f1b}
 .gcal-tog-slider::before{content:'';position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
 .gcal-cal-tog input:checked+.gcal-tog-slider{background:var(--accent)}
 .gcal-cal-tog input:checked+.gcal-tog-slider::before{transform:translateX(16px)}
+/* PEOPLE TRACKER */
+.ppl-wrap{flex:1;display:flex;overflow:hidden;min-height:0;position:relative}
+.ppl-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.ppl-sumbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+.ppl-sum-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);user-select:none}
+.ppl-sum-chip:hover{border-color:var(--bh);color:var(--text)}.ppl-sum-chip.act{border-color:var(--accent);background:var(--al);color:var(--accent)}
+.ppl-controls{display:flex;align-items:center;gap:7px;padding:8px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+.ppl-search{flex:1;min-width:110px;border:1.5px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none}
+.ppl-search:focus{border-color:var(--accent)}
+.ppl-sel{font-size:12px;font-family:var(--font);padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text);cursor:pointer}
+.ppl-vtab{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--t2);cursor:pointer;font-size:14px;flex-shrink:0}
+.ppl-vtab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ppl-content{flex:1;overflow-y:auto;padding:12px 16px 80px}
+.ppl-av{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:700;font-family:var(--font);color:#fff;flex-shrink:0;text-transform:uppercase;letter-spacing:-.02em}
+.ppl-list{display:flex;flex-direction:column;gap:4px}
+.ppl-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:border-color .1s}
+.ppl-row:hover{border-color:var(--bh)}.ppl-row.on{border-color:var(--accent);background:var(--al)}
+.ppl-row-info{flex:1;min-width:0}
+.ppl-row-name{font-size:13px;font-weight:600;color:var(--text)}
+.ppl-row-sub{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ppl-row-acts{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.ppl-row:hover .ppl-row-acts,.ppl-row.on .ppl-row-acts{opacity:1}
+.ppl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:1000px){.ppl-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.ppl-grid{grid-template-columns:1fr}}
+.ppl-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;overflow:hidden;transition:border-color .1s;display:flex;flex-direction:column}
+.ppl-card:hover{border-color:var(--bh)}.ppl-card.on{border-color:var(--accent)}
+.ppl-card-body{padding:16px;display:flex;flex-direction:column;align-items:center;text-align:center;flex:1}
+.ppl-card-name{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--text);margin:10px 0 2px}
+.ppl-card-sub{font-size:11px;color:var(--t3);margin-bottom:8px}
+.ppl-card-foot{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);font-size:11px}
+.ppl-sdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;margin-right:3px}
+.ppl-tpill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:capitalize}
+.ppl-tpill.professional{background:#ccfbf1;color:#0f766e}
+.ppl-tpill.personal{background:var(--al);color:var(--accent)}
+.ppl-tpill.other{background:var(--bg);color:var(--t3);border:1px solid var(--border)}
+.ppl-badge{background:#ccfbf1;color:#0f766e;border:1px solid #a7f3d0;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600}
+html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
+.ppl-detail{position:absolute;right:0;top:0;bottom:0;width:380px;background:var(--surface);border-left:2px solid var(--border);display:flex;flex-direction:column;z-index:10;transform:translateX(100%);transition:transform .25s;overflow:hidden}
+.ppl-detail.open{transform:translateX(0)}
+.ppl-dhdr{padding:14px 16px;border-bottom:1.5px solid var(--border);display:flex;align-items:flex-start;gap:12px;flex-shrink:0}
+.ppl-dhdr-info{flex:1;min-width:0}
+.ppl-dbody{flex:1;overflow-y:auto;padding:14px 16px 40px}
+.ppl-dsec{margin-bottom:18px}
+.ppl-dsh{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t3);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.ppl-tl{display:flex;flex-direction:column}
+.ppl-tl-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ppl-tl-item:last-child{border-bottom:none}
+.ppl-tl-icon{width:30px;height:30px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.ppl-tl-bd{flex:1;min-width:0}
+.ppl-tl-date{font-size:11px;color:var(--t3);margin-bottom:2px}
+.ppl-tl-notes{font-size:12px;color:var(--text);line-height:1.5;word-break:break-word}
+.ppl-tl-del{font-size:11px;color:var(--t3);cursor:pointer;padding:2px 4px;border-radius:3px}
+.ppl-tl-del:hover{color:var(--danger);background:var(--dbg)}
+.ppl-log-form{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:14px}
+.ppl-form-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.ppl-form-card{background:var(--surface);border-radius:var(--r);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.ppl-form-hdr{padding:16px 20px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--surface);position:sticky;top:0;z-index:1}
+.ppl-form-body{padding:20px}
+.ppl-fl{margin-bottom:14px}
+.ppl-flbl{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.ppl-fi{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none}
+.ppl-fi:focus{border-color:var(--accent)}
+.ppl-fi-ta{resize:vertical;min-height:72px}
+.ppl-color-row{display:flex;gap:8px;flex-wrap:wrap}
+.ppl-csw{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .1s}
+.ppl-csw.on{border-color:var(--text)}
+.ppl-type-btns{display:flex;gap:6px}
+.ppl-type-btn{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--r);text-align:center;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--bg);color:var(--t2)}
+.ppl-type-btn.on{border-color:var(--accent);background:var(--al);color:var(--accent)}
+@media(max-width:700px){
+  .ppl-detail{width:100%;border-left:none;border-top:2px solid var(--border)}
+  .ppl-row-acts{opacity:1}
+  .ppl-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -800,6 +875,7 @@ html.dark .journal-right{background:#221f1b}
       <div class="ni vcal" onclick="setV('calendar',this)">📆 Calendar</div>
       <div class="ni vhab" onclick="setV('habits',this)">🌱 Habits</div>
       <div class="ni" onclick="setV('journal',this)">📓 Journal</div>
+      <div class="ni" onclick="setV('people',this)">👥 People</div>
       <div class="ni" onclick="setV('done',this)">✓ Completed</div>
       <div class="ni" onclick="setV('deleted',this)">🗑 Recently Deleted</div>
     </div>
@@ -1332,8 +1408,9 @@ function setV(v,el){
   ab.onclick=v==='habits'?toggleHabAdd:openAdd;
   if(v==='overview')ib.style.display='';
   if(v!=='habits'&&v!=='plan')document.getElementById('taw').classList.remove('open');
-  if(v==='settings'||v==='journal'||v==='deleted'){ab.style.display='none';}
+  if(v==='settings'||v==='journal'||v==='deleted'||v==='people'){ab.style.display='none';}
   if(v==='journal')journalLoaded=false;
+  if(v==='people'){pplLoaded=false;selectedPersonId=null;pplLogFormOpen=false;}
   closeSB();render();
 }
 function setTagV(tag){tagFilter=tag;view='tag';editId=null;document.querySelectorAll('.ni,.tnav,.pr,.sch').forEach(i=>i.classList.remove('on'));document.querySelector(`.tnav[data-tag="${tag}"]`)?.classList.add('on');closeSB();render();}
@@ -1341,7 +1418,7 @@ function setProjV(pid){view=pid;tagFilter=null;editId=null;document.querySelecto
 function setSecV(pid,sid){view='sec:'+sid;tagFilter=null;editId=null;document.querySelectorAll('.ni,.tnav,.pr,.sch').forEach(i=>i.classList.remove('on'));document.querySelector(`.sch[data-sid="${sid}"]`)?.classList.add('on');closeSB();render();}
 
 // ── ADD TASK ─────────────────────────────────────────────────
-const FAB_HIDDEN_VIEWS=new Set(['habits','matrix','calendar','settings','journal','deleted','plan']);
+const FAB_HIDDEN_VIEWS=new Set(['habits','matrix','calendar','settings','journal','deleted','plan','people']);
 function updateFAB(){
   const fab=document.getElementById('fab');if(!fab)return;
   const tawOpen=!!document.getElementById('taw')?.classList.contains('open');
@@ -1486,7 +1563,8 @@ async function saveEdit(id){
     due_date:document.getElementById('ed-'+id)?.value||null,priority:+document.getElementById('ep-'+id)?.value||3,
     project_id:document.getElementById('epr-'+id)?.value||null,section_id:document.getElementById('es-'+id)?.value||null,
     pomos:+document.getElementById('emo-'+id)?.value||1,is_urgent:document.getElementById('eu-'+id)?.checked||false,
-    is_important:document.getElementById('eim-'+id)?.checked||false};
+    is_important:document.getElementById('eim-'+id)?.checked||false,
+    linked_person_id:document.getElementById('eppl-'+id)?.value||null};
   Object.assign(tk,upd);editId=null;render();toast('Task saved');await PATCH('/tasks/'+id,upd);
 }
 function buildSecOpts(pid,cur){const p=projects.find(p=>p.id===pid);return'<option value="">No section</option>'+(p?(p.sections||[]).map(s=>`<option value="${s.id}"${s.id===cur?' selected':''}>${s.name}</option>`).join(''):'');}
@@ -1587,7 +1665,7 @@ function taskRow(tk,showProj){
       <div class="tbody">
         <div class="ttxt" onclick="togDetail('${tk.id}')">${tk.name}</div>
         ${dueLine(tk)}${addedLine(tk)}
-        <div class="ttags">${projH}${tagsH}<span class="ptag" onclick="startPomo('${tk.id}')">🍅 ${pomos}×${PMIN}m</span>${subProgress}${hasNotes?'<span class="notes-icon" title="Has notes">📝</span>':''}${tk.gcal_event_id?`<span class="tdbadge gcal-badge">📅 Cal</span>`:''} ${tk.todoist_task_id?`<span class="tdbadge td-badge">✓ Todoist</span>`:''} ${tk.ticktick_task_id?`<span class="tdbadge tt-badge">✓ TickTick</span>`:''}</div>
+        <div class="ttags">${projH}${tagsH}<span class="ptag" onclick="startPomo('${tk.id}')">🍅 ${pomos}×${PMIN}m</span>${subProgress}${hasNotes?'<span class="notes-icon" title="Has notes">📝</span>':''}${tk.linked_person_name?`<span class="ppl-badge" onclick="event.stopPropagation();pplOpenDetail('${tk.linked_person_id}')">👤 ${tk.linked_person_name}</span>`:''} ${tk.gcal_event_id?`<span class="tdbadge gcal-badge">📅 Cal</span>`:''} ${tk.todoist_task_id?`<span class="tdbadge td-badge">✓ Todoist</span>`:''} ${tk.ticktick_task_id?`<span class="tdbadge tt-badge">✓ TickTick</span>`:''}</div>
       </div>
       <div class="tbtns">
         <button class="tbt${tk.today_pick?' plan-on':''} tbt-plan" onclick="togPick('${tk.id}')" title="${tk.today_pick?'Remove from plan':'Add to plan'}">⏱</button>
@@ -1615,6 +1693,7 @@ function taskRow(tk,showProj){
         <select class="esel" id="epr-${tk.id}" onchange="updES('${tk.id}')"><option value="">No project</option>${projOpts}</select>
         <select class="esel" id="es-${tk.id}">${buildSecOpts(tk.project_id,tk.section_id)}</select>
         <select class="esel" id="emo-${tk.id}">${[1,2,3,4,5,6,8].map(n=>`<option value="${n}"${n===pomos?' selected':''}>🍅 ${n}×${PMIN}m</option>`).join('')}</select>
+        <select class="esel" id="eppl-${tk.id}"><option value="">No person</option>${people.filter(p=>p.status!=='archived').map(p=>`<option value="${p.id}"${p.id===tk.linked_person_id?' selected':''}>${p.name}</option>`).join('')}</select>
       </div>
       <div class="efl">
         <label><input type="checkbox" id="eu-${tk.id}"${tk.is_urgent?' checked':''} style="accent-color:#b91c1c"/> Urgent</label>
@@ -1898,6 +1977,7 @@ function render(){
   if(view==='calendar'){renderCalendar();updTitle();renderSidebar();return;}
   if(view==='settings'){renderSettings();updTitle();renderSidebar();return;}
   if(view==='journal'){renderJournalView();updTitle();renderSidebar();return;}
+  if(view==='people'){renderPeopleView();updTitle();renderSidebar();return;}
   if(view==='deleted'){renderDeletedView();updTitle();renderSidebar();return;}
   if(projects.find(p=>p.id===view)){
     const proj=projects.find(p=>p.id===view);let html='';
@@ -1924,7 +2004,7 @@ function render(){
   updTitle();
   document.getElementById('cnt-td').textContent=tasks.filter(tk=>!tk.is_done&&!tk.parent_id&&tk.today_pick).length||'';
   document.getElementById('cnt-all').textContent=tasks.filter(tk=>!tk.is_done&&!tk.parent_id).length||'';
-  const subs={today:new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}),all:`${tasks.filter(t=>!t.is_done&&!t.parent_id).length} tasks remaining`,done:`${tasks.filter(t=>t.is_done&&!t.parent_id).length} completed`,matrix:'Drag tasks between quadrants',habits:'Track daily habits',overview:'All tasks by project',calendar:`${MONTHS[calMonth]} ${calYear}`,settings:'Manage your account and integrations',journal:'Daily reflections',deleted:'Tasks are permanently deleted after 30 days'};
+  const subs={today:new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}),all:`${tasks.filter(t=>!t.is_done&&!t.parent_id).length} tasks remaining`,done:`${tasks.filter(t=>t.is_done&&!t.parent_id).length} completed`,matrix:'Drag tasks between quadrants',habits:'Track daily habits',overview:'All tasks by project',calendar:`${MONTHS[calMonth]} ${calYear}`,settings:'Manage your account and integrations',journal:'Daily reflections',deleted:'Tasks are permanently deleted after 30 days',people:`${people.filter(p=>p.status!=='archived').length} contacts`};
   document.getElementById('v-sub').textContent=subs[view]||'';
   renderSidebar();refProjSel();
 }
@@ -1933,7 +2013,7 @@ function updTitle(){
   const secId=view.startsWith('sec:')?view.slice(4):null;
   const secProj=secId?projects.find(p=>(p.sections||[]).find(s=>s.id===secId)):null;
   const sec=secId?(secProj?.sections||[]).find(s=>s.id===secId):null;
-  const titles={today:'Today',all:'All Tasks',done:'Completed',matrix:'Eisenhower Matrix',plan:'Plan My Day',habits:'Habits',overview:'Overview',calendar:'Calendar',settings:'Settings',journal:'Journal',deleted:'Recently Deleted',tag:'#'+tagFilter};
+  const titles={today:'Today',all:'All Tasks',done:'Completed',matrix:'Eisenhower Matrix',plan:'Plan My Day',habits:'Habits',overview:'Overview',calendar:'Calendar',settings:'Settings',journal:'Journal',deleted:'Recently Deleted',people:'People',tag:'#'+tagFilter};
   let h='';
   if(proj)h=`<span style="width:10px;height:10px;border-radius:50%;background:${proj.color};display:inline-block;flex-shrink:0"></span>${proj.name}`;
   else if(sec&&secProj)h=`<span style="width:10px;height:10px;border-radius:50%;background:${secProj.color};display:inline-block;flex-shrink:0"></span><span style="color:var(--t3);font-weight:400">${secProj.name} /</span> ${sec.name}`;
@@ -2518,6 +2598,235 @@ async function setJournalMood(mood){
     else{journalEntries.unshift({id:uid(),entry_date:journalSelDate,title,body,mood:newMood,word_count:0});}
     journalLoaded=true;renderJournalView();
   }catch(e){}
+}
+
+// ── PEOPLE TRACKER ───────────────────────────────────────────
+let people=[], selectedPersonId=null, pplViewMode='list', pplFilterType='', pplFilterStatus='', pplSort='name', pplSearch='', pplLoaded=false, pplPersonInteractions=[], pplLogFormOpen=false, pplNewIactType='call';
+const PPL_COLORS=['#c4922a','#0d9488','#7c3aed','#1d4ed8','#ea580c','#1a7a4a'];
+const PPL_SC={overdue:'#dc2626',due_soon:'#c4922a',upcoming:'#1a7a4a',active:'#1a7a4a',dormant:'#a8a59e',never:'#a8a59e'};
+const IACT_ICONS={call:'📞',email:'✉️',meeting:'🤝',message:'💬',other:'📝'};
+function pplInitials(name){return(name||'').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();}
+function pplDot(p){return`<span class="ppl-sdot" style="background:${PPL_SC[p.follow_up_status]||'#a8a59e'}"></span>`;}
+function pplPill(type){return`<span class="ppl-tpill ${type||'other'}">${type||'other'}</span>`;}
+function pplLastC(p){return p.last_contacted?fmtD(p.last_contacted):'Never';}
+function pplFuDate(p){return p.follow_up_date?new Date(p.follow_up_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'Not set';}
+
+async function renderPeopleView(){
+  const area=document.getElementById('tarea');
+  area.style.cssText='padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0;position:relative;';
+  if(!pplLoaded){
+    area.innerHTML='<div style="padding:32px;color:var(--t3);display:flex;align-items:center;gap:10px"><div class="spinner"></div>Loading contacts…</div>';
+    try{people=await GET('/people');pplLoaded=true;}catch(e){people=[];pplLoaded=true;}
+  }
+  let fl=people.filter(p=>p.status!=='archived');
+  if(pplFilterType)fl=fl.filter(p=>p.type===pplFilterType);
+  if(pplFilterStatus)fl=fl.filter(p=>p.follow_up_status===pplFilterStatus);
+  if(pplSearch){const q=pplSearch.toLowerCase();fl=fl.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.organization||'').toLowerCase().includes(q)||(p.role||'').toLowerCase().includes(q));}
+  fl=[...fl].sort((a,b)=>{
+    if(pplSort==='last_contacted'){if(!a.last_contacted&&!b.last_contacted)return 0;if(!a.last_contacted)return 1;if(!b.last_contacted)return -1;return b.last_contacted.localeCompare(a.last_contacted);}
+    if(pplSort==='follow_up_date'){if(!a.follow_up_date&&!b.follow_up_date)return 0;if(!a.follow_up_date)return 1;if(!b.follow_up_date)return -1;return a.follow_up_date.localeCompare(b.follow_up_date);}
+    if(pplSort==='status'){const o={overdue:0,due_soon:1,upcoming:2,active:3,dormant:4,never:5};return(o[a.follow_up_status]||5)-(o[b.follow_up_status]||5);}
+    return a.name.localeCompare(b.name);
+  });
+  const total=people.filter(p=>p.status!=='archived').length;
+  const overdue=people.filter(p=>p.follow_up_status==='overdue').length;
+  const dueSoon=people.filter(p=>p.follow_up_status==='due_soon').length;
+  const sumbar=`<div class="ppl-sumbar">
+    <div class="ppl-sum-chip${pplFilterStatus==='overdue'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='overdue'?'':'overdue';pplLoaded=true;renderPeopleView()">🔴 ${overdue} overdue</div>
+    <div class="ppl-sum-chip${pplFilterStatus==='due_soon'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='due_soon'?'':'due_soon';pplLoaded=true;renderPeopleView()">🟡 ${dueSoon} due this week</div>
+    <div class="ppl-sum-chip" style="cursor:default">✓ ${total} contacts</div>
+  </div>`;
+  const controls=`<div class="ppl-controls">
+    <div style="display:flex;gap:4px">
+      <div class="ppl-vtab${pplViewMode==='list'?' on':''}" onclick="pplViewMode='list';pplLoaded=true;renderPeopleView()" title="List">☰</div>
+      <div class="ppl-vtab${pplViewMode==='card'?' on':''}" onclick="pplViewMode='card';pplLoaded=true;renderPeopleView()" title="Cards">⊞</div>
+    </div>
+    <select class="ppl-sel" onchange="pplFilterType=this.value;pplLoaded=true;renderPeopleView()"><option value="">All types</option><option value="professional"${pplFilterType==='professional'?' selected':''}>Professional</option><option value="personal"${pplFilterType==='personal'?' selected':''}>Personal</option><option value="other"${pplFilterType==='other'?' selected':''}>Other</option></select>
+    <select class="ppl-sel" onchange="pplSort=this.value;pplLoaded=true;renderPeopleView()"><option value="name"${pplSort==='name'?' selected':''}>Name</option><option value="last_contacted"${pplSort==='last_contacted'?' selected':''}>Last contacted</option><option value="follow_up_date"${pplSort==='follow_up_date'?' selected':''}>Follow-up date</option><option value="status"${pplSort==='status'?' selected':''}>Status</option></select>
+    <input class="ppl-search" placeholder="Search…" value="${pplSearch.replace(/"/g,'&quot;')}" oninput="pplSearch=this.value;pplLoaded=true;renderPeopleView()"/>
+    <button class="bpri" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="openPersonForm()">+ Add person</button>
+  </div>`;
+  let listHtml='';
+  if(!fl.length){listHtml=`<div class="empty-st"><div class="ei">👥</div><div class="et">No contacts yet</div><div class="es">Add your first contact to start tracking follow-ups</div></div>`;}
+  else if(pplViewMode==='list'){listHtml=`<div class="ppl-list">${fl.map(p=>pplRowHtml(p)).join('')}</div>`;}
+  else{listHtml=`<div class="ppl-grid">${fl.map(p=>pplCardHtml(p)).join('')}</div>`;}
+  const detailHtml=selectedPersonId?buildPplDetail(people.find(p=>p.id===selectedPersonId)):`<div class="ppl-detail" id="ppl-detail"></div>`;
+  area.innerHTML=`<div class="ppl-wrap"><div class="ppl-main">${sumbar}${controls}<div class="ppl-content">${listHtml}</div></div>${detailHtml}</div>`;
+  if(selectedPersonId)setTimeout(()=>document.getElementById('ppl-detail')?.classList.add('open'),20);
+}
+function pplRowHtml(p){
+  const sc=PPL_SC[p.follow_up_status]||'#a8a59e';
+  return`<div class="ppl-row${p.id===selectedPersonId?' on':''}" onclick="pplSelect('${p.id}')">
+    <div class="ppl-av" style="width:40px;height:40px;font-size:14px;background:${p.avatar_color||'#c4922a'}">${pplInitials(p.name)}</div>
+    <div class="ppl-row-info"><div class="ppl-row-name">${p.name}</div><div class="ppl-row-sub">${[p.role,p.organization].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>
+    ${pplPill(p.type)}
+    <div style="font-size:11px;color:var(--t3);text-align:right;flex-shrink:0;min-width:70px">${pplLastC(p)}</div>
+    <div style="font-size:11px;color:var(--t3);text-align:right;flex-shrink:0;min-width:70px">${pplFuDate(p)}</div>
+    <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;min-width:88px">${pplDot(p)}<span style="font-size:11px;color:${sc};font-weight:500">${p.follow_up_status_label}</span></div>
+    <div class="ppl-row-acts"><button class="bsm" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();pplOpenLog('${p.id}')">Log</button><button class="bsm" style="font-size:11px;padding:3px 8px" onclick="event.stopPropagation();openPersonForm('${p.id}')">✎</button></div>
+  </div>`;
+}
+function pplCardHtml(p){
+  const sc=PPL_SC[p.follow_up_status]||'#a8a59e';
+  return`<div class="ppl-card${p.id===selectedPersonId?' on':''}" onclick="pplSelect('${p.id}')">
+    <div class="ppl-card-body">
+      <div class="ppl-av" style="width:56px;height:56px;font-size:20px;background:${p.avatar_color||'#c4922a'}">${pplInitials(p.name)}</div>
+      <div class="ppl-card-name">${p.name}</div>
+      <div class="ppl-card-sub">${[p.role,p.organization].filter(Boolean).join(' · ')||'&nbsp;'}</div>
+      ${pplPill(p.type)}
+    </div>
+    <div class="ppl-card-foot" style="background:${sc}14">
+      <div style="display:flex;align-items:center;gap:4px">${pplDot(p)}<span style="color:${sc};font-weight:600;font-size:11px">${p.follow_up_status_label}</span></div>
+      <span style="font-size:10px;color:var(--t3)">${p.last_contacted?'Last: '+fmtD(p.last_contacted):'Never contacted'}</span>
+    </div>
+  </div>`;
+}
+function buildPplDetail(p){
+  if(!p)return'<div class="ppl-detail" id="ppl-detail"></div>';
+  const sc=PPL_SC[p.follow_up_status]||'#a8a59e';
+  const logForm=pplLogFormOpen===p.id?`<div class="ppl-log-form">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:8px">Log interaction</div>
+    <select class="ppl-fi" id="ppl-itype" style="margin-bottom:8px"><option value="call">📞 Call</option><option value="email">✉️ Email</option><option value="meeting">🤝 Meeting</option><option value="message">💬 Message</option><option value="other">📝 Other</option></select>
+    <input type="date" class="ppl-fi" id="ppl-idate" value="${td()}" style="margin-bottom:8px"/>
+    <textarea class="ppl-fi ppl-fi-ta" id="ppl-inotes" placeholder="What did you discuss?" style="margin-bottom:8px;min-height:56px"></textarea>
+    <div style="display:flex;gap:6px"><button class="bsm bsav" onclick="pplSaveInteraction('${p.id}')">Save</button><button class="bsm bcnl" onclick="pplLogFormOpen=false;pplLoaded=true;renderPeopleView()">Cancel</button></div>
+  </div>`:'';
+  const iacts=pplPersonInteractions.map(i=>`<div class="ppl-tl-item">
+    <div class="ppl-tl-icon">${IACT_ICONS[i.type]||'📝'}</div>
+    <div class="ppl-tl-bd">
+      <div class="ppl-tl-date">${new Date(i.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric'})}</div>
+      ${i.notes?`<div class="ppl-tl-notes">${i.notes.replace(/</g,'&lt;')}</div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px"><span style="font-size:10px;color:var(--t3);text-transform:capitalize">${i.type}</span><span class="ppl-tl-del" onclick="pplDelInteraction('${i.id}','${p.id}')">✕</span></div>
+    </div>
+  </div>`).join('')||'<div style="font-size:12px;color:var(--t3);font-style:italic;padding:8px 0">No interactions yet</div>';
+  const relTasks=tasks.filter(t=>t.linked_person_id===p.id&&!t.is_done);
+  const relTasksHtml=relTasks.length?`<div class="ppl-dsec"><div class="ppl-dsh">Related tasks</div>${relTasks.map(t=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px"><div class="tchk" style="width:14px;height:14px;border-radius:50%;border:1.5px solid var(--bh);cursor:pointer;flex-shrink:0" onclick="togDone('${t.id}')"></div><span style="flex:1;color:var(--text)">${t.name}</span>${t.due_date?`<span style="font-size:10px;color:var(--t3)">${fmtD(t.due_date)}</span>`:''}</div>`).join('')}</div>`:'' ;
+  return`<div class="ppl-detail" id="ppl-detail">
+    <div class="ppl-dhdr">
+      <div class="ppl-av" style="width:52px;height:52px;font-size:18px;background:${p.avatar_color||'#c4922a'}">${pplInitials(p.name)}</div>
+      <div class="ppl-dhdr-info">
+        <div style="font-family:var(--fd);font-size:17px;font-weight:700;color:var(--text);margin-bottom:2px">${p.name}</div>
+        <div style="font-size:12px;color:var(--t3)">${[p.role,p.organization].filter(Boolean).join(' · ')||'&nbsp;'}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">${pplPill(p.type)}<span style="display:flex;align-items:center">${pplDot(p)}<span style="font-size:11px;color:${sc};font-weight:600">${p.follow_up_status_label}</span></span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0"><button class="bsm" style="font-size:11px;padding:3px 8px" onclick="openPersonForm('${p.id}')">✎</button><button class="sb-x" onclick="pplClose()">×</button></div>
+    </div>
+    <div class="ppl-dbody">
+      ${p.email||p.phone?`<div class="ppl-dsec">${p.email?`<div style="font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);width:44px">Email</span><a href="mailto:${p.email}" style="color:var(--accent);text-decoration:none;font-size:13px">${p.email}</a></div>`:''} ${p.phone?`<div style="font-size:12px;display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);width:44px">Phone</span><a href="tel:${p.phone}" style="color:var(--accent);text-decoration:none;font-size:13px">${p.phone}</a></div>`:''}</div>`:''}
+      <div class="ppl-dsec">
+        <div class="ppl-dsh">Follow-up</div>
+        <div style="display:flex;flex-direction:column;gap:7px;font-size:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--t3)">Frequency</span><span style="color:var(--text)">${p.follow_up_frequency?'Every '+p.follow_up_frequency+' days':'Not set'}</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--t3)">Next follow-up</span><input type="date" style="font-size:12px;border:1.5px solid var(--border);border-radius:4px;padding:2px 6px;background:var(--bg);color:var(--text);outline:none" value="${p.follow_up_date||''}" onchange="pplUpdateFU('${p.id}',this.value)"/></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+            <button class="bsm" style="font-size:11px;padding:4px 8px" onclick="pplOpenLog('${p.id}')">📝 Log interaction</button>
+            <button class="bsm" style="font-size:11px;padding:4px 8px" onclick="pplCreateTask('${p.id}')">+ Follow-up task</button>
+          </div>
+        </div>
+      </div>
+      ${logForm}
+      <div class="ppl-dsec">
+        <div class="ppl-dsh">Notes</div>
+        <textarea class="ppl-fi ppl-fi-ta" placeholder="Notes about this person…" onblur="pplSaveNotes('${p.id}',this.value)">${(p.notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      </div>
+      ${relTasksHtml}
+      <div class="ppl-dsec">
+        <div class="ppl-dsh">Interactions <button class="set-btn" style="font-size:10px;padding:2px 8px" onclick="pplOpenLog('${p.id}')">+ Log</button></div>
+        <div class="ppl-tl">${iacts}</div>
+      </div>
+      <div style="padding-top:12px;border-top:1px solid var(--border)"><button class="bsm" style="font-size:11px;color:var(--t3);border-color:var(--border)" onclick="pplArchive('${p.id}')">Archive contact</button></div>
+    </div>
+  </div>`;
+}
+
+async function pplSelect(id){
+  if(selectedPersonId===id){pplClose();return;}
+  selectedPersonId=id;pplLogFormOpen=false;
+  pplLoaded=true;renderPeopleView();
+  try{const data=await GET('/people/'+id);const idx=people.findIndex(p=>p.id===id);if(idx>=0)people[idx]=data;pplPersonInteractions=data.interactions||[];pplLoaded=true;renderPeopleView();}catch(e){pplPersonInteractions=[];}
+}
+function pplClose(){selectedPersonId=null;pplLogFormOpen=false;pplLoaded=true;renderPeopleView();}
+function pplOpenDetail(id){view='people';setV('people',document.querySelector('.ni[onclick*="people"]'));pplSelect(id);}
+function pplOpenLog(personId){
+  if(selectedPersonId!==personId){selectedPersonId=personId;pplLoaded=true;pplSelect(personId).then(()=>{pplLogFormOpen=personId;pplLoaded=true;renderPeopleView();});return;}
+  pplLogFormOpen=pplLogFormOpen===personId?false:personId;pplLoaded=true;renderPeopleView();
+}
+async function pplSaveInteraction(personId){
+  const type=document.getElementById('ppl-itype')?.value||'call';
+  const date=document.getElementById('ppl-idate')?.value||td();
+  const notes=document.getElementById('ppl-inotes')?.value||'';
+  try{
+    const i=await POST('/people/'+personId+'/interactions',{type,date,notes});
+    pplPersonInteractions.unshift(i);
+    const p=people.find(p=>p.id===personId);if(p&&(!p.last_contacted||date>p.last_contacted))p.last_contacted=date;
+    pplLogFormOpen=false;
+    try{const data=await GET('/people/'+personId);const idx=people.findIndex(p=>p.id===personId);if(idx>=0)people[idx]=data;pplPersonInteractions=data.interactions||[];}catch(e){}
+    pplLoaded=true;renderPeopleView();toast('Interaction logged');
+  }catch(e){toast('Failed to save');}
+}
+async function pplDelInteraction(iid,personId){
+  if(!confirm('Delete this interaction?'))return;
+  await fetch('/api/interactions/'+iid,{method:'DELETE'});
+  pplPersonInteractions=pplPersonInteractions.filter(i=>i.id!==iid);
+  pplLoaded=true;renderPeopleView();
+}
+async function pplUpdateFU(personId,date){
+  try{const upd=await PATCH('/people/'+personId,{follow_up_date:date||null});const idx=people.findIndex(p=>p.id===personId);if(idx>=0)people[idx]=upd;}catch(e){}
+  pplLoaded=true;renderPeopleView();
+}
+async function pplSaveNotes(personId,notes){
+  try{await PATCH('/people/'+personId,{notes});}catch(e){}
+}
+async function pplArchive(id){
+  if(!confirm('Archive this contact?'))return;
+  await PATCH('/people/'+id,{status:'archived'});
+  people=people.filter(p=>p.id!==id);selectedPersonId=null;pplLogFormOpen=false;pplLoaded=true;renderPeopleView();toast('Contact archived');
+}
+async function pplCreateTask(personId){
+  const p=people.find(p=>p.id===personId);if(!p)return;
+  try{const t=await POST('/tasks',{name:'Follow up with '+p.name,due_date:p.follow_up_date||null,priority:2,linked_person_id:personId});tasks.push(t);toast('Follow-up task created');}catch(e){toast('Could not create task');}
+}
+
+// PERSON FORM
+let pplFormColor='#c4922a',pplFormType='professional',pplFormId=null;
+function openPersonForm(id){
+  pplFormId=id||null;
+  const p=id?people.find(p=>p.id===id):null;
+  pplFormColor=p?.avatar_color||'#c4922a';pplFormType=p?.type||'professional';
+  const colSwatches=PPL_COLORS.map(c=>`<div class="ppl-csw${pplFormColor===c?' on':''}" style="background:${c};width:28px;height:28px" onclick="pplFormColor='${c}';document.querySelectorAll('.ppl-csw').forEach(s=>s.classList.toggle('on',s.dataset.c==='${c}'))" data-c="${c}"></div>`).join('');
+  const typeBtns=['professional','personal','other'].map(t=>`<button class="ppl-type-btn${pplFormType===t?' on':''}" onclick="pplFormType='${t}';document.querySelectorAll('.ppl-type-btn').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${t}</button>`).join('');
+  const freqOpts=[['','Not set'],['7','Weekly'],['14','Bi-weekly'],['30','Monthly'],['90','Quarterly'],['365','Annually']].map(([v,l])=>`<option value="${v}"${(p?.follow_up_frequency?.toString()||'')==v?' selected':''}>${l}</option>`).join('');
+  const html=`<div class="ppl-form-ov" onclick="if(event.target===this)closePplForm()">
+    <div class="ppl-form-card">
+      <div class="ppl-form-hdr"><div style="font-size:15px;font-weight:700;color:var(--text);flex:1">${p?'Edit contact':'New contact'}</div><button class="sb-x" onclick="closePplForm()">×</button></div>
+      <div class="ppl-form-body">
+        <div class="ppl-fl"><div class="ppl-flbl">Name *</div><input class="ppl-fi" id="pf-name" value="${(p?.name||'').replace(/"/g,'&quot;')}" placeholder="Full name"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Type</div><div class="ppl-type-btns">${typeBtns}</div></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Organization</div><input class="ppl-fi" id="pf-org" value="${(p?.organization||'').replace(/"/g,'&quot;')}" placeholder="Company or group"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Role / Title</div><input class="ppl-fi" id="pf-role" value="${(p?.role||'').replace(/"/g,'&quot;')}" placeholder="e.g. Product Manager"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Email</div><input class="ppl-fi" id="pf-email" type="email" value="${(p?.email||'').replace(/"/g,'&quot;')}" placeholder="email@example.com"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Phone</div><input class="ppl-fi" id="pf-phone" value="${(p?.phone||'').replace(/"/g,'&quot;')}" placeholder="+1 555 000 0000"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Avatar color</div><div class="ppl-color-row">${colSwatches}</div></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Follow-up frequency</div><select class="ppl-fi" id="pf-freq">${freqOpts}</select></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Next follow-up</div><input class="ppl-fi" id="pf-fdate" type="date" value="${p?.follow_up_date||''}"/></div>
+        <div class="ppl-fl"><div class="ppl-flbl">Notes</div><textarea class="ppl-fi ppl-fi-ta" id="pf-notes">${(p?.notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><button class="bsm bcnl" onclick="closePplForm()">Cancel</button><button class="bsm bsav" onclick="savePplForm()">Save</button></div>
+      </div>
+    </div>
+  </div>`;
+  const m=document.createElement('div');m.id='ppl-form-mount';m.innerHTML=html;document.body.appendChild(m);
+}
+function closePplForm(){document.getElementById('ppl-form-mount')?.remove();}
+async function savePplForm(){
+  const name=document.getElementById('pf-name')?.value.trim();
+  if(!name){toast('Name is required');return;}
+  const freq=document.getElementById('pf-freq')?.value;
+  const data={name,type:pplFormType,organization:document.getElementById('pf-org')?.value.trim()||null,role:document.getElementById('pf-role')?.value.trim()||null,email:document.getElementById('pf-email')?.value.trim()||null,phone:document.getElementById('pf-phone')?.value.trim()||null,avatar_color:pplFormColor,follow_up_frequency:freq?parseInt(freq):null,follow_up_date:document.getElementById('pf-fdate')?.value||null,notes:document.getElementById('pf-notes')?.value||''};
+  try{
+    if(pplFormId){const upd=await PATCH('/people/'+pplFormId,data);const idx=people.findIndex(p=>p.id===pplFormId);if(idx>=0)people[idx]=upd;toast('Contact updated');}
+    else{const created=await POST('/people',data);people.unshift(created);toast('Contact added');}
+    closePplForm();pplLoaded=true;renderPeopleView();
+  }catch(e){toast('Failed to save contact');}
 }
 
 loadTheme();
