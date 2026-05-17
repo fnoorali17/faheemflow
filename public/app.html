@@ -1017,7 +1017,7 @@ let habitWkOff=0, selEmoji='🌱', editHabId=null, showHabAdd=false;
 let ovSort='priority';
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), calSelDay=null;
 let calView='month', calWeekDate=null, calDayDate=null, calPanelDate=null;
-let gcalEvents=[], gcalFetched={};
+let gcalEvents=[], gcalCacheFrom=null, gcalCacheTo=null;
 let importRows=[];
 let dragEl=null, dragClone=null, dragOffX=0, dragOffY=0, dragId=null, dragOriginQ=null;
 let resetToken=null;
@@ -1046,7 +1046,9 @@ async function setTheme(theme){
 }
 
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
-const td=()=>new Date().toISOString().slice(0,10);
+const td=()=>{const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+// Local-date from a GCal startTime ISO string (avoids UTC-offset mismatch)
+function evLocalDate(e){if(!e.startTime)return e.start;const d=new Date(e.startTime);return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
 const parseTags=t=>(t.match(/#([a-zA-Z0-9_]+)/g)||[]).map(x=>x.slice(1).toLowerCase());
 const stripTags=t=>t.replace(/#[a-zA-Z0-9_]+/g,'').replace(/\s+/g,' ').trim();
 const allTags=()=>{const s=new Set();tasks.forEach(t=>(t.tags||[]).forEach(g=>s.add(g)));return[...s].sort()};
@@ -1145,6 +1147,7 @@ async function checkAuth(){
 
 async function loadAll(){
   [projects,tasks,habits]=await Promise.all([GET('/projects'),GET('/tasks'),GET('/habits')]);
+  gcalCacheFrom=null;gcalCacheTo=null;gcalEvents=[];
   render();
 }
 
@@ -1367,7 +1370,7 @@ async function toggleGcalCal(calId,on){
   if(on&&!sel.includes(calId))sel.push(calId);
   else if(!on)sel=sel.filter(id=>id!==calId);
   await PATCH('/settings',{selected_calendars:sel});
-  gcalFetched={};gcalEvents=[];
+  gcalCacheFrom=null;gcalCacheTo=null;gcalEvents=[];
   toast('Calendar preferences saved');
 }
 
@@ -2075,13 +2078,28 @@ function buildCalPills(d,dayTasks,dayGcal,viewType){
 
 // ── GCAL EVENTS ───────────────────────────────────────────────
 async function fetchGcalEventsForRange(from,to){
-  const key=`${from}|${to}`;
-  if(gcalFetched[key])return;
-  gcalFetched[key]=true;
+  // Expand to nearest whole-week boundaries to reduce repeated small fetches
+  const needsFetch=!gcalCacheFrom||!gcalCacheTo||from<gcalCacheFrom||to>gcalCacheTo;
+  if(!needsFetch)return;
+  // Extend range to cover both cached and new range
+  const fetchFrom=gcalCacheFrom&&gcalCacheFrom<from?gcalCacheFrom:from;
+  const fetchTo=gcalCacheTo&&gcalCacheTo>to?gcalCacheTo:to;
+  gcalCacheFrom=fetchFrom;gcalCacheTo=fetchTo;
   try{
-    const evs=await GET(`/gcal/events?from=${from}&to=${to}`);
-    if(Array.isArray(evs)){gcalEvents=gcalEvents.filter(e=>e.start<from||e.start>to);gcalEvents.push(...evs);}
-  }catch(e){}
+    const evs=await GET(`/gcal/events?from=${fetchFrom}&to=${fetchTo}`);
+    if(Array.isArray(evs)){
+      // Deduplicate: merge by event ID, new data wins
+      const byId=Object.fromEntries(gcalEvents.map(e=>[e.id,e]));
+      evs.forEach(e=>{byId[e.id]=e;});
+      gcalEvents=Object.values(byId);
+    }
+    // Re-render calendar if still on that view (events arrived async)
+    if(view==='calendar')renderCalendar();
+  }catch(e){
+    // On error keep existing cached events; reset cache bounds so retry is possible
+    if(gcalCacheFrom===fetchFrom)gcalCacheFrom=null;
+    if(gcalCacheTo===fetchTo)gcalCacheTo=null;
+  }
 }
 
 // ── CALENDAR (multi-view) ─────────────────────────────────────
@@ -2154,13 +2172,13 @@ function renderCalMonth(area,hdr){
   const byDate={};
   tasks.filter(t=>t.due_date&&!t.is_done&&!t.parent_id).forEach(t=>{if(!byDate[t.due_date])byDate[t.due_date]=[];byDate[t.due_date].push(t);});
   const gcalByDate={};
-  gcalEvents.forEach(e=>{if(!gcalByDate[e.start])gcalByDate[e.start]=[];gcalByDate[e.start].push(e);});
+  gcalEvents.forEach(e=>{const dk=evLocalDate(e);if(!gcalByDate[dk])gcalByDate[dk]=[];gcalByDate[dk].push(e);});
   const fromD=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
   const toD=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
   fetchGcalEventsForRange(fromD,toD);
   // Build week rows and multi-day layout
   const numWeeks=totalCells/7;
-  const weekRows=Array.from({length:numWeeks},(_,w)=>Array.from({length:7},(_,d)=>{const dayOffset=w*7+d-startDow;return new Date(calYear,calMonth,dayOffset+1).toISOString().slice(0,10);}));
+  const weekRows=Array.from({length:numWeeks},(_,w)=>Array.from({length:7},(_,d)=>{const dayOffset=w*7+d-startDow;const dd=new Date(calYear,calMonth,dayOffset+1);return[dd.getFullYear(),String(dd.getMonth()+1).padStart(2,'0'),String(dd.getDate()).padStart(2,'0')].join('-');}));
   const multiDayEvs=gcalEvents.filter(e=>e.start&&e.end&&evLastDay(e)>e.start);
   const mdLayout=computeMDLayout(multiDayEvs,weekRows);
   const dayLabels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-day-lbl">${d}</div>`).join('');
@@ -2207,7 +2225,7 @@ function renderCalWeek(area,hdr){
   const allDayCols=wkDays.map(d=>{
     const isToday=d===today;
     const dayTasks=tasks.filter(t=>t.due_date===d&&!t.is_done&&!t.parent_id);
-    const allDayGcal=gcalEvents.filter(e=>e.start===d&&!e.startTime);
+    const allDayGcal=gcalEvents.filter(e=>evLocalDate(e)===d&&!e.startTime);
     const pills=dayTasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-week-task" style="background:${ps.raw}22;color:${ps.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${t.name}</div>`;}).join('')
       +allDayGcal.map(e=>`<div class="cal-week-gcal" style="background:${e.color}30;color:${e.color}">${e.title}</div>`).join('');
     return`<div class="cal-week-alldaycell${isToday?' today-col':''}" onclick="openCalPanel('${d}')">${pills}</div>`;
@@ -2216,14 +2234,16 @@ function renderCalWeek(area,hdr){
   // Time grid with timed events absolutely positioned
   const timeGridCols=wkDays.map(d=>{
     const isToday=d===today;
-    const timedGcal=gcalEvents.filter(e=>e.start===d&&e.startTime).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    const timedGcal=gcalEvents.filter(e=>evLocalDate(e)===d&&e.startTime).sort((a,b)=>a.startTime.localeCompare(b.startTime));
     const hourCells=WK_HOURS.map(()=>`<div style="height:52px;border-bottom:1px solid var(--border)"></div>`).join('');
     const evBlocks=timedGcal.map(e=>{
-      const sh=parseInt(e.startTime.slice(11,13)),sm=parseInt(e.startTime.slice(14,16));
-      const eh=e.endTime?parseInt(e.endTime.slice(11,13)):sh+1,em=e.endTime?parseInt(e.endTime.slice(14,16)):0;
+      const sd=new Date(e.startTime),sh=sd.getHours(),sm=sd.getMinutes();
+      const ed=e.endTime?new Date(e.endTime):new Date(sd.getTime()+3600000);
+      const eh=ed.getHours(),em=ed.getMinutes();
       const top=Math.max(0,(sh-6)*52+sm*52/60);
       const ht=Math.max(18,((eh-sh)*60+(em-sm))*52/60);
-      return`<div class="cal-timed-ev" style="top:${top}px;height:${ht}px;background:${e.color}33;color:${e.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${e.startTime.slice(11,16)} ${e.title}</div>`;
+      const timeLbl=sd.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+      return`<div class="cal-timed-ev" style="top:${top}px;height:${ht}px;background:${e.color}33;color:${e.color}" onclick="event.stopPropagation();openCalPanel('${d}')" title="${e.title}">${ht>28?timeLbl+' ':''}${e.title}</div>`;
     }).join('');
     return`<div style="position:relative${isToday?';background:rgba(196,146,42,.03)':''};border-left:1px solid var(--border)">${hourCells}${evBlocks}</div>`;
   }).join('');
@@ -2241,28 +2261,42 @@ function renderCalDay(area,hdr){
   const t=calDayDate,today=td();
   const dayFmt=new Date(t+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const rawTasks=tasks.filter(tk=>tk.due_date===t&&!tk.is_done&&!tk.parent_id);
-  const rawGcal=gcalEvents.filter(e=>e.start===t);
+  const rawGcal=gcalEvents.filter(e=>evLocalDate(e)===t);
   fetchGcalEventsForRange(t,t);
+  const DAY_H=60; // px per hour
   const HOURS=Array.from({length:17},(_,i)=>i+6);
   const nowMin=new Date().getHours()*60+new Date().getMinutes();
   const nowPct=t===today?((nowMin-360)/(17*60))*100:null;
-  const timeRows=HOURS.map(h=>`<div class="cal-week-timeslot">${String(h).padStart(2,'0')}:00</div>`).join('');
-  const evRows=HOURS.map(()=>`<div style="height:60px;border-bottom:1px solid var(--border)"></div>`).join('');
-  // Sorted items: tasks by priority, then all-day gcal, then timed gcal by time
+  const timeRows=HOURS.map(h=>`<div class="cal-day-timeslot">${String(h).padStart(2,'0')}:00</div>`).join('');
+  const evRows=HOURS.map(()=>`<div style="height:${DAY_H}px;border-bottom:1px solid var(--border)"></div>`).join('');
   const sortedTasks=[...rawTasks].sort((a,b)=>a.priority-b.priority);
   const allDayGcal=rawGcal.filter(e=>!e.startTime);
-  const timedGcal=[...rawGcal.filter(e=>e.startTime)].sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
+  const timedGcal=rawGcal.filter(e=>!!e.startTime).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+  // All-day area: Irada tasks + all-day GCal events
   const taskBlocks=sortedTasks.map(tk=>{const ps=getPSt(tk.project_id);return`<div class="cal-day-task-block" style="background:${ps.raw}20;color:${ps.color}">${tk.name}</div>`;}).join('');
   const allDayBlocks=allDayGcal.map(e=>`<div class="cal-day-gcal-block" style="background:${e.color}20;color:${e.color}">${e.title} <span style="font-size:9px;opacity:.7">(all day)</span></div>`).join('');
-  const timedBlocks=timedGcal.map(e=>`<div class="cal-day-gcal-block" style="background:${e.color}20;color:${e.color}">${e.startTime.slice(11,16)} · ${e.title}</div>`).join('');
+  // Timed GCal events: absolutely positioned in time grid (not in all-day area)
+  const timedEvBlocks=timedGcal.map(e=>{
+    const sd=new Date(e.startTime),sh=sd.getHours(),sm=sd.getMinutes();
+    const ed=e.endTime?new Date(e.endTime):new Date(sd.getTime()+3600000);
+    const eh=ed.getHours(),em=ed.getMinutes();
+    const top=Math.max(0,(sh-6)*DAY_H+sm*DAY_H/60);
+    const ht=Math.max(30,((eh-sh)*60+(em-sm))*DAY_H/60);
+    const startFmt=sd.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+    const endFmt=ed.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+    return`<div class="cal-timed-ev" style="top:${top}px;height:${ht}px;background:${e.color}33;color:${e.color};white-space:normal;line-height:1.3;font-size:11px" onclick="openCalPanel('${t}')" title="${e.title}">
+      <div style="font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${e.title}</div>
+      ${ht>32?`<div style="font-size:9px;opacity:.8;margin-top:1px">${startFmt} – ${endFmt}</div>`:''}
+    </div>`;
+  }).join('');
   const nowLine=nowPct!=null?`<div class="cal-day-now" style="top:${nowPct}%"></div>`:'';
   const panelHtml=buildCalSidePanel();
   area.innerHTML=`<div class="cal-wrap" style="position:relative">${hdr}
     <div style="padding:8px 14px;border-bottom:1.5px solid var(--border);background:${t===today?'var(--al)':'var(--surface)'};font-family:var(--fd);font-size:14px;font-weight:400;color:var(--text)">${dayFmt}</div>
-    ${taskBlocks||allDayBlocks||timedBlocks?`<div style="padding:6px 14px;border-bottom:1.5px solid var(--border);display:flex;flex-direction:column;gap:3px">${taskBlocks}${allDayBlocks}${timedBlocks}</div>`:''}
+    ${taskBlocks||allDayBlocks?`<div style="padding:6px 14px;border-bottom:1.5px solid var(--border);display:flex;flex-direction:column;gap:3px">${taskBlocks}${allDayBlocks}</div>`:''}
     <div class="cal-day-timeline" style="flex:1;overflow-y:auto;position:relative">
       <div class="cal-day-timecol">${timeRows}</div>
-      <div style="position:relative">${evRows}${nowLine}</div>
+      <div style="position:relative">${evRows}${timedEvBlocks}${nowLine}</div>
     </div>${panelHtml}</div>`;
   if(calPanelDate)area.querySelector('.cal-side')?.classList.add('open');
 }
@@ -2299,11 +2333,12 @@ function buildCalSidePanel(){
   if(!calPanelDate)return'<div class="cal-side" id="cal-side-panel"></div>';
   const dateLabel=new Date(calPanelDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const rawTasks=tasks.filter(t=>t.due_date===calPanelDate&&!t.parent_id);
-  const rawGcal=gcalEvents.filter(e=>e.start===calPanelDate);
+  const rawGcal=gcalEvents.filter(e=>evLocalDate(e)===calPanelDate);
   const {tasks:sortedTasks,allDayGcal,timedGcal}=sortCalItems(rawTasks,rawGcal);
   const taskRows=sortedTasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-side-ev"><div class="cal-side-pip" style="background:${ps.raw||'#9ca3af'}"></div><div><div class="cal-side-name${t.is_done?' done':''}" style="${t.is_done?'text-decoration:line-through;color:var(--t3)':''}">${t.name}</div>${ps.name?`<div class="cal-side-sub">${ps.name}</div>`:''}</div></div>`;}).join('');
   const allDayRows=allDayGcal.map(e=>`<div class="cal-side-ev gcal"><div class="cal-side-pip" style="background:${e.color}"></div><div><div class="cal-side-name">${e.title}</div><div class="cal-side-sub">All day</div></div></div>`).join('');
-  const timedRows=timedGcal.map(e=>`<div class="cal-side-ev gcal"><div class="cal-side-pip" style="background:${e.color}"></div><div><div class="cal-side-name">${e.title}</div>${e.startTime?`<div class="cal-side-sub">${e.startTime.slice(11,16)}${e.endTime?' – '+e.endTime.slice(11,16):''}</div>`:''}</div></div>`).join('');
+  const fmtT=s=>new Date(s).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  const timedRows=timedGcal.map(e=>`<div class="cal-side-ev gcal"><div class="cal-side-pip" style="background:${e.color}"></div><div><div class="cal-side-name">${e.title}</div>${e.startTime?`<div class="cal-side-sub">${fmtT(e.startTime)}${e.endTime?' – '+fmtT(e.endTime):''}</div>`:''}</div></div>`).join('');
   const empty=!taskRows&&!allDayRows&&!timedRows?`<div style="font-size:13px;color:var(--t3);font-style:italic;padding:8px 0">No tasks or events</div>`:'';
   return`<div class="cal-side open" id="cal-side-panel">
     <div class="cal-side-hdr">
