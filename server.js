@@ -542,31 +542,53 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     const ttProjects = await ttReq(token,'GET','/project');
     const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[stripEmoji(p.name).toLowerCase(),p.id]));
     const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,stripEmoji(p.name)]));
+    // Pre-fetch all project data (tasks + columns) once
+    const ttProjData={};
+    for(const proj of (ttProjects||[])){
+      try{
+        const data=await ttReq(token,'GET',`/project/${proj.id}/data`);
+        const cols=data.columns||[];
+        ttProjData[proj.id]={tasks:data.tasks||[],cols,colById:Object.fromEntries(cols.map(c=>[c.id,stripEmoji(c.name)])),colByName:Object.fromEntries(cols.map(c=>[stripEmoji(c.name).toLowerCase(),c.id]))};
+      }catch(e){ttProjData[proj.id]={tasks:[],cols:[],colById:{},colByName:{}};}
+    }
     let pushed=0,pulled=0;
-    const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0 AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
+    // PUSH: local → TickTick (with section → column mapping)
+    const localTasks=db.prepare('SELECT t.*,p.name as proj_name,s.name as sec_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id LEFT JOIN sections s ON t.section_id=s.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0 AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
     for(const task of localTasks){
       let ttProjId=null;
-      if(task.proj_name){ttProjId=ttProjByName[task.proj_name.toLowerCase()];if(!ttProjId){try{const np=await ttReq(token,'POST','/project',{name:task.proj_name});ttProjId=np.id;ttProjByName[task.proj_name.toLowerCase()]=ttProjId;}catch(e){}}}
+      if(task.proj_name){ttProjId=ttProjByName[task.proj_name.toLowerCase()];if(!ttProjId){try{const np=await ttReq(token,'POST','/project',{name:task.proj_name});ttProjId=np.id;ttProjByName[task.proj_name.toLowerCase()]=ttProjId;ttProjData[ttProjId]={tasks:[],cols:[],colById:{},colByName:{}};}catch(e){}}}
+      let ttColId=null;
+      if(task.sec_name&&ttProjId&&ttProjData[ttProjId]){
+        const secKey=stripEmoji(task.sec_name).toLowerCase();
+        ttColId=ttProjData[ttProjId].colByName[secKey];
+        if(!ttColId){try{const nc=await ttReq(token,'POST',`/project/${ttProjId}/section`,{name:task.sec_name});if(nc?.id){ttColId=nc.id;ttProjData[ttProjId].colByName[secKey]=ttColId;ttProjData[ttProjId].colById[ttColId]=task.sec_name;}}catch(e){}}
+      }
       const pri=task.priority===1?5:task.priority===2?3:task.priority===3?1:0;
       const payload={title:task.name,content:task.notes||'',priority:pri,projectId:ttProjId||undefined,dueDate:task.due_date?task.due_date+'T00:00:00+0000':undefined,tags:task.tags||[]};
+      if(ttColId)payload.columnId=ttColId;
       if(task.ticktick_task_id){try{await ttReq(token,'POST',`/task/${task.ticktick_task_id}`,{...payload,id:task.ticktick_task_id});pushed++;}catch(e){if(e.message.includes('404')||e.message.includes('400')){try{const nc=await ttReq(token,'POST','/task',payload);db.prepare('UPDATE tasks SET ticktick_task_id=? WHERE id=?').run(nc.id,task.id);pushed++;}catch(e2){}}}}
       else{try{const nc=await ttReq(token,'POST','/task',payload);db.prepare('UPDATE tasks SET ticktick_task_id=? WHERE id=?').run(nc.id,task.id);pushed++;}catch(e){}}
     }
+    // PULL: TickTick → local (using pre-fetched data, map columns → sections)
     const existingTtIds=new Set(db.prepare('SELECT ticktick_task_id FROM tasks WHERE user_id=? AND ticktick_task_id IS NOT NULL').all(userId).map(r=>r.ticktick_task_id));
     for(const proj of (ttProjects||[])){
-      try{
-        const projData=await ttReq(token,'GET',`/project/${proj.id}/data`);
-        for(const ttt of (projData.tasks||[])){
-          if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
-          let localProjId=null;
-          if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND name=?').get(userId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(nid,userId,pname,'#6b7280',99);localProjId=nid;}else localProjId=lp.id;}
-          const pri=ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
-          db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,notes,due_date,priority,project_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,ttt.content||'',ttt.dueDate?ttt.dueDate.slice(0,10):null,pri,localProjId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
-          pulled++;
+      const pd=ttProjData[proj.id]||{tasks:[],colById:{}};
+      for(const ttt of pd.tasks){
+        if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
+        let localProjId=null;
+        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND name=?').get(userId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(nid,userId,pname,'#6b7280',99);localProjId=nid;}else localProjId=lp.id;}
+        // Map TickTick column → Irada section
+        let localSecId=null;
+        if(ttt.columnId&&localProjId){
+          const colName=pd.colById[ttt.columnId];
+          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND name=?').get(userId,localProjId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,is_open,sort_order) VALUES (?,?,?,?,?,?)').run(sid,localProjId,userId,colName,1,99);localSecId=sid;}else localSecId=ls.id;}
         }
-      }catch(e){}
+        const pri=ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
+        db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,notes,due_date,priority,project_id,section_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,ttt.content||'',ttt.dueDate?ttt.dueDate.slice(0,10):null,pri,localProjId,localSecId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
+        pulled++;
+      }
     }
-    res.json({ ok: true, pushed, pulled });
+    res.json({ok:true,pushed,pulled});
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

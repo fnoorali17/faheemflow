@@ -336,8 +336,8 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .cal-today-btn:hover{border-color:var(--bh)}
 .cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1.5px solid var(--border);background:var(--bg);flex-shrink:0}
 .cal-day-lbl{padding:6px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.04em;text-transform:uppercase}
-.cal-scroll-body{flex:1;overflow-y:auto;position:relative}
-.cal-cells{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(80px,1fr)}
+.cal-scroll-body{flex:1;overflow-y:auto;position:relative;display:flex;flex-direction:column}
+.cal-cells{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(80px,1fr);min-height:480px}
 .cal-cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px;background:var(--surface);min-height:80px;cursor:pointer;overflow:hidden}
 .cal-cell:nth-child(7n){border-right:none}
 .cal-cell:hover{background:#fafaf8}
@@ -543,11 +543,37 @@ html.dark .journal-right{background:#221f1b}
 .journal-wordcount{font-family:monospace}
 .journal-save-status{font-style:italic}
 .journal-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--t3);padding:60px 24px;text-align:center;flex:1}
+.journal-back-btn{display:none;align-items:center;gap:5px;padding:8px 12px;border-bottom:1.5px solid var(--border);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;background:var(--surface);flex-shrink:0}
+.journal-back-btn:hover{color:var(--text);background:var(--bg)}
+/* portrait phone: one panel at a time */
+@media(max-width:700px) and (orientation:portrait){
+  .journal-left{width:100%;min-width:0;border-right:none}
+  .journal-right{width:100%}
+  .journal-left.j-active{display:flex}
+  .journal-left:not(.j-active){display:none}
+  .journal-right.j-active{display:flex}
+  .journal-right:not(.j-active){display:none}
+  .journal-back-btn{display:flex}
+  .journal-editor{padding:16px 16px 12px}
+  .journal-body-ta{min-height:160px}
+}
+/* landscape phone: side by side 40/60 */
+@media(max-width:900px) and (orientation:landscape){
+  .journal-left{width:40%;min-width:0}
+  .journal-right{width:60%}
+  .journal-editor{padding:16px 20px 12px}
+}
+/* tablet+: always side by side */
+@media(min-width:701px) and (orientation:portrait){
+  .journal-left{display:flex;width:300px;min-width:260px}
+  .journal-right{display:flex}
+}
+@media(max-width:700px) and (orientation:landscape){
+  .journal-left{display:flex;width:40%;min-width:0;border-right:1.5px solid var(--border)}
+  .journal-right{display:flex;width:60%}
+}
+/* Small-screen fallback (non-orientation-supporting) */
 @media(max-width:700px){
-  .journal-left{display:none;width:100%;min-width:0}
-  .journal-left.show{display:flex}
-  .journal-right{display:none}
-  .journal-right.show{display:flex}
   .journal-editor{padding:20px 18px 12px}
 }
 .spinner{width:22px;height:22px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}
@@ -593,6 +619,15 @@ html.dark .journal-right{background:#221f1b}
 .cal-week-row{height:52px;border-bottom:1px solid var(--border);padding:2px 3px;overflow:hidden}
 .cal-week-task{font-size:11px;font-weight:500;padding:2px 6px;border-radius:4px;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-week-gcal{font-size:10px;font-style:italic;padding:2px 5px;border-radius:3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.6}
+/* week view all-day row */
+.cal-week-allday-row{display:grid;grid-template-columns:48px repeat(7,1fr);border-bottom:1.5px solid var(--border);background:var(--bg);flex-shrink:0}
+.cal-week-allday-lbl{border-right:1.5px solid var(--border);font-size:9px;color:var(--t3);display:flex;align-items:flex-end;padding:2px 4px;flex-shrink:0}
+.cal-week-alldaycell{border-left:1px solid var(--border);padding:2px 3px;min-height:28px;cursor:pointer}
+.cal-week-alldaycell.today-col{background:rgba(196,146,42,.06)}
+.cal-week-alldaycell:hover{background:var(--al)}
+.cal-timed-ev{position:absolute;left:2px;right:2px;font-size:10px;padding:1px 4px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;z-index:2;font-style:italic;min-height:16px;border-left:2px solid currentColor}
+/* multi-day event bands in month view */
+.cal-md-band{height:18px;line-height:18px;font-size:10px;font-weight:500;padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:1px;cursor:pointer}
 /* day view */
 .cal-day-timeline{flex:1;overflow-y:auto;display:grid;grid-template-columns:52px 1fr}
 .cal-day-timecol{border-right:1.5px solid var(--border)}
@@ -915,7 +950,7 @@ let sortBy='priority', sfOpen=false;
 let filterProj='', filterPri='', filterTag='', filterFrom='', filterTo='';
 let currentTheme='light';
 // Journal
-let journalEntries=[], journalSelDate=null, journalSearch='', journalAutoSaveTimer=null, journalSaveStatus='saved', journalLoaded=false;
+let journalEntries=[], journalSelDate=null, journalSearch='', journalAutoSaveTimer=null, journalSaveStatus='saved', journalLoaded=false, journalPanel='right';
 // Section drag
 let secDragEl=null, secDragClone=null, secDragId=null, secDragOffX=0, secDragOffY=0;
 // Undo delete
@@ -1522,6 +1557,20 @@ function dueLine(tk){
   const isOv=tk.due_date<t&&!tk.is_done,isToday=tk.due_date===t;
   return`<div class="tdue${isOv?' ov':isToday?' tod':''}"><span class="dl">Due:</span> <span class="dv">${lbl}</span></div>`;
 }
+function addedLine(tk){
+  if(!tk.created_at)return'';
+  const createdDate=(tk.created_at+'').slice(0,10);
+  if(createdDate>=td())return'';
+  const d=new Date((tk.created_at+'').replace(' ','T'));
+  const thisYear=new Date().getFullYear();
+  const lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric',...(d.getFullYear()!==thisYear?{year:'numeric'}:{})});
+  return`<div style="font-size:11px;color:var(--t3);margin-top:1px">Added ${lbl}</div>`;
+}
+function addedFull(tk){
+  if(!tk.created_at)return'';
+  const d=new Date((tk.created_at+'').replace(' ','T'));
+  return'Added '+d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' at '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
 function taskRow(tk,showProj){
   const ps=getPSt(tk.project_id);
   const tagsH=(tk.tags||[]).map(tg=>`<span class="htag" onclick="setTagV('${tg}')">#${tg}</span>`).join('');
@@ -1537,7 +1586,7 @@ function taskRow(tk,showProj){
       <div class="tchk" onclick="togDone('${tk.id}')">${tk.is_done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div>
       <div class="tbody">
         <div class="ttxt" onclick="togDetail('${tk.id}')">${tk.name}</div>
-        ${dueLine(tk)}
+        ${dueLine(tk)}${addedLine(tk)}
         <div class="ttags">${projH}${tagsH}<span class="ptag" onclick="startPomo('${tk.id}')">🍅 ${pomos}×${PMIN}m</span>${subProgress}${hasNotes?'<span class="notes-icon" title="Has notes">📝</span>':''}${tk.gcal_event_id?`<span class="tdbadge gcal-badge">📅 Cal</span>`:''} ${tk.todoist_task_id?`<span class="tdbadge td-badge">✓ Todoist</span>`:''} ${tk.ticktick_task_id?`<span class="tdbadge tt-badge">✓ TickTick</span>`:''}</div>
       </div>
       <div class="tbtns">
@@ -1549,6 +1598,7 @@ function taskRow(tk,showProj){
     </div>
     ${expandedTask===tk.id&&!isEd?`<div class="task-detail">
       ${hasNotes?`<div class="task-detail-notes">${tk.notes}</div>`:'<div style="font-size:12px;color:var(--t3);font-style:italic;margin-bottom:10px">No notes</div>'}
+      ${tk.created_at?`<div style="font-size:12px;color:var(--t3);margin-bottom:10px;font-style:italic">${addedFull(tk)}</div>`:''}
       <div class="task-detail-acts">
         <button class="bsm bsav" onclick="startEdit('${tk.id}')">✎ Edit task</button>
         ${subs.length?`<span style="font-size:12px;color:var(--t3)">${subs.filter(s=>s.is_done).length}/${subs.length} subtasks done</span>`:''}
@@ -1999,6 +2049,24 @@ function calNavV(dir){
 }
 function calGoToday(){calWeekDate=td();calDayDate=td();const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();calSelDay=td();calPanelDate=td();renderCalendar();}
 
+function evLastDay(e){
+  if(!e.end||e.end===e.start)return e.start;
+  const d=new Date(e.end+'T12:00:00');d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);
+}
+function computeMDLayout(multiDayEvs,weekRows){
+  const layout={};
+  for(const wr of weekRows){
+    const ws=wr[0],we=wr[wr.length-1];
+    const over=multiDayEvs.filter(e=>e.start<=we&&evLastDay(e)>=ws).sort((a,b)=>a.start.localeCompare(b.start));
+    const laneEnd=[];const evLane=new Map();
+    for(const ev of over){const ld=evLastDay(ev);let ln=0;while(laneEnd[ln]&&laneEnd[ln]>=ev.start)ln++;evLane.set(ev.id,ln);laneEnd[ln]=ld;}
+    for(const ds of wr){
+      if(!layout[ds])layout[ds]=[];
+      for(const ev of over){const ld=evLastDay(ev);if(ev.start>ds||ld<ds)continue;const ln=evLane.get(ev.id);while(layout[ds].length<=ln)layout[ds].push(null);layout[ds][ln]={ev,isStart:ev.start===ds,isEnd:ld===ds,isRowStart:ds===ws||ev.start===ds,isRowEnd:ds===we||ld===ds};}
+    }
+  }
+  return layout;
+}
 function renderCalMonth(area,hdr){
   const today=td(),firstDay=new Date(calYear,calMonth,1),lastDay=new Date(calYear,calMonth+1,0);
   const startDow=firstDay.getDay()===0?6:firstDay.getDay()-1;
@@ -2007,10 +2075,14 @@ function renderCalMonth(area,hdr){
   tasks.filter(t=>t.due_date&&!t.is_done&&!t.parent_id).forEach(t=>{if(!byDate[t.due_date])byDate[t.due_date]=[];byDate[t.due_date].push(t);});
   const gcalByDate={};
   gcalEvents.forEach(e=>{if(!gcalByDate[e.start])gcalByDate[e.start]=[];gcalByDate[e.start].push(e);});
-  // prefetch this month
   const fromD=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
   const toD=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
   fetchGcalEventsForRange(fromD,toD);
+  // Build week rows and multi-day layout
+  const numWeeks=totalCells/7;
+  const weekRows=Array.from({length:numWeeks},(_,w)=>Array.from({length:7},(_,d)=>{const dayOffset=w*7+d-startDow;return new Date(calYear,calMonth,dayOffset+1).toISOString().slice(0,10);}));
+  const multiDayEvs=gcalEvents.filter(e=>e.start&&e.end&&evLastDay(e)>e.start);
+  const mdLayout=computeMDLayout(multiDayEvs,weekRows);
   const dayLabels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-day-lbl">${d}</div>`).join('');
   let cells='';
   for(let i=0;i<totalCells;i++){
@@ -2018,14 +2090,23 @@ function renderCalMonth(area,hdr){
     const dateStr=date.toISOString().slice(0,10);
     const inMonth=date.getMonth()===calMonth,isToday=dateStr===today,isSel=dateStr===calPanelDate;
     const rawDayTasks=(byDate[dateStr]||[]).sort((a,b)=>a.priority-b.priority);
-    const rawDayGcal=(gcalByDate[dateStr]||[]);
+    const rawDayGcal=(gcalByDate[dateStr]||[]).filter(e=>!multiDayEvs.some(m=>m.id===e.id));
     const allDayGcalHere=rawDayGcal.filter(e=>!e.startTime);
     const timedGcalHere=[...rawDayGcal.filter(e=>e.startTime)].sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
-    const dayTasks=rawDayTasks;const MAX_SHOW=3;
-    const taskDots=dayTasks.slice(0,MAX_SHOW).map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${ps.raw||'#9ca3af'}"></div><span class="cal-task-name">${t.name}</span></div>`;}).join('');
-    const gcalDots=[...allDayGcalHere,...timedGcalHere].slice(0,2).map(e=>`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${e.color};opacity:.55"></div><span class="cal-task-name" style="font-style:italic;opacity:.65">${e.startTime?e.startTime.slice(11,16)+' ':''  }${e.title}</span></div>`).join('');
-    const more=dayTasks.length>MAX_SHOW?`<div class="cal-more">+${dayTasks.length-MAX_SHOW} more</div>`:'';
-    cells+=`<div class="cal-cell${!inMonth?' other-month':''}${isToday?' today':''}${isSel?' selected':''}" onclick="openCalPanel('${dateStr}')"><div class="cal-day-num">${date.getDate()}</div>${taskDots}${gcalDots}${more}</div>`;
+    // Multi-day bands
+    const mdBands=(mdLayout[dateStr]||[]).map(entry=>{
+      if(!entry)return`<div style="height:19px;margin-bottom:1px"></div>`;
+      const {ev,isStart,isEnd,isRowStart,isRowEnd}=entry;
+      const rl=isStart?'9px':'0',rr=isEnd?'9px':'0';
+      const ml=isStart?'2px':'-1px',mr=isEnd?'2px':'-1px';
+      const showTxt=isRowStart;
+      return`<div class="cal-md-band" style="background:${ev.color}40;color:${ev.color};border-radius:${rl} ${rr} ${rr} ${rl};margin:1px ${mr} 1px ${ml}" onclick="event.stopPropagation();openCalPanel('${ev.start}')" title="${ev.title}">${showTxt?ev.title:''}</div>`;
+    }).join('');
+    const MAX_SHOW=2;
+    const taskDots=rawDayTasks.slice(0,MAX_SHOW).map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${ps.raw||'#9ca3af'}"></div><span class="cal-task-name">${t.name}</span></div>`;}).join('');
+    const gcalDots=[...allDayGcalHere,...timedGcalHere].slice(0,1).map(e=>`<div class="cal-task-dot"><div class="cal-task-pip" style="background:${e.color};opacity:.55"></div><span class="cal-task-name" style="font-style:italic;opacity:.65">${e.startTime?e.startTime.slice(11,16)+' ':''}${e.title}</span></div>`).join('');
+    const more=rawDayTasks.length>MAX_SHOW?`<div class="cal-more">+${rawDayTasks.length-MAX_SHOW} more</div>`:'';
+    cells+=`<div class="cal-cell${!inMonth?' other-month':''}${isToday?' today':''}${isSel?' selected':''}" onclick="openCalPanel('${dateStr}')"><div class="cal-day-num">${date.getDate()}</div>${mdBands}${taskDots}${gcalDots}${more}</div>`;
   }
   const panelHtml=buildCalSidePanel();
   area.innerHTML=`<div class="cal-wrap">${hdr}<div class="cal-days-hdr">${dayLabels}</div><div class="cal-scroll-body"><div class="cal-cells">${cells}</div></div>${panelHtml}</div>`;
@@ -2035,27 +2116,43 @@ function renderCalMonth(area,hdr){
 function renderCalWeek(area,hdr){
   const wkDays=wkDatesFrom(calWeekDate),today=td();
   fetchGcalEventsForRange(wkDays[0],wkDays[6]);
+  const WK_HOURS=Array.from({length:17},(_,i)=>i+6);
   const colHeaders=wkDays.map((d,i)=>{
-    const isToday=d===today;
-    const dn=new Date(d+'T12:00:00');
+    const isToday=d===today,dn=new Date(d+'T12:00:00');
     return`<div class="cal-week-dayhdr${isToday?' today-col':''}" onclick="calDayDate='${d}';calView='day';renderCalendar()">
       ${DLBL[i]}<br><div class="cal-week-daynum${isToday?' today':''}">${dn.getDate()}</div>
-    </div>`;}).join('');
-  const HOURS=Array.from({length:17},(_,i)=>i+6);
-  const timeSlots=HOURS.map(h=>`<div class="cal-week-timeslot">${String(h).padStart(2,'0')}:00</div>`).join('');
+    </div>`;
+  }).join('');
+  // All-day row: tasks + all-day GCal events
+  const allDayCols=wkDays.map(d=>{
+    const isToday=d===today;
+    const dayTasks=tasks.filter(t=>t.due_date===d&&!t.is_done&&!t.parent_id);
+    const allDayGcal=gcalEvents.filter(e=>e.start===d&&!e.startTime);
+    const pills=dayTasks.map(t=>{const ps=getPSt(t.project_id);return`<div class="cal-week-task" style="background:${ps.raw}22;color:${ps.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${t.name}</div>`;}).join('')
+      +allDayGcal.map(e=>`<div class="cal-week-gcal" style="background:${e.color}30;color:${e.color}">${e.title}</div>`).join('');
+    return`<div class="cal-week-alldaycell${isToday?' today-col':''}" onclick="openCalPanel('${d}')">${pills}</div>`;
+  }).join('');
+  const timeSlots=WK_HOURS.map(h=>`<div class="cal-week-timeslot">${String(h).padStart(2,'0')}:00</div>`).join('');
+  // Time grid with timed events absolutely positioned
+  const timeGridCols=wkDays.map(d=>{
+    const isToday=d===today;
+    const timedGcal=gcalEvents.filter(e=>e.start===d&&e.startTime).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+    const hourCells=WK_HOURS.map(()=>`<div style="height:52px;border-bottom:1px solid var(--border)"></div>`).join('');
+    const evBlocks=timedGcal.map(e=>{
+      const sh=parseInt(e.startTime.slice(11,13)),sm=parseInt(e.startTime.slice(14,16));
+      const eh=e.endTime?parseInt(e.endTime.slice(11,13)):sh+1,em=e.endTime?parseInt(e.endTime.slice(14,16)):0;
+      const top=Math.max(0,(sh-6)*52+sm*52/60);
+      const ht=Math.max(18,((eh-sh)*60+(em-sm))*52/60);
+      return`<div class="cal-timed-ev" style="top:${top}px;height:${ht}px;background:${e.color}33;color:${e.color}" onclick="event.stopPropagation();openCalPanel('${d}')">${e.startTime.slice(11,16)} ${e.title}</div>`;
+    }).join('');
+    return`<div style="position:relative${isToday?';background:rgba(196,146,42,.03)':''};border-left:1px solid var(--border)">${hourCells}${evBlocks}</div>`;
+  }).join('');
   const panelHtml=buildCalSidePanel();
   area.innerHTML=`<div class="cal-wrap" style="position:relative">${hdr}
     <div class="cal-week-grid"><div class="cal-week-timehdr"></div>${colHeaders}</div>
+    <div class="cal-week-allday-row"><div class="cal-week-allday-lbl">all-day</div>${allDayCols}</div>
     <div style="flex:1;overflow-y:auto"><div style="display:grid;grid-template-columns:48px repeat(7,1fr)">
-      <div class="cal-week-timecol">${timeSlots}</div>
-      ${wkDays.map((d,i)=>{
-        const dayTasks=sortCalItems(tasks.filter(t=>t.due_date===d&&!t.is_done&&!t.parent_id),[]);
-        const dayGcal=gcalEvents.filter(e=>e.start===d);
-        const isToday=d===today;
-        const cells=HOURS.map(()=>`<div style="height:52px;border-bottom:1px solid var(--border);border-left:1px solid var(--border)"></div>`).join('');
-        const {taskPills,gcalPills}=buildCalPills(d,dayTasks,dayGcal,'week');
-        return`<div style="position:relative${isToday?';background:rgba(196,146,42,.03)':''}"><div style="padding:4px 4px 0;position:sticky;top:0;z-index:2;background:${isToday?'rgba(196,146,42,.03)':'var(--surface)'};">${taskPills}${gcalPills}</div>${cells}</div>`;
-      }).join('')}
+      <div class="cal-week-timecol">${timeSlots}</div>${timeGridCols}
     </div></div>${panelHtml}</div>`;
   if(calPanelDate)area.querySelector('.cal-side')?.classList.add('open');
 }
@@ -2335,7 +2432,7 @@ async function renderJournalView(){
     const moodObj=MOODS.find(m=>m.key===e.mood);
     const isToday=e.entry_date===td();
     const dateLabel=isToday?'Today':new Date(e.entry_date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    return`<div class="journal-entry-card${e.entry_date===journalSelDate?' on':''}" onclick="journalSelDate='${e.entry_date}';journalLoaded=true;renderJournalView()">
+    return`<div class="journal-entry-card${e.entry_date===journalSelDate?' on':''}" onclick="journalSelDate='${e.entry_date}';journalPanel='right';journalLoaded=true;renderJournalView()">
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
         ${moodObj?`<span>${moodObj.emoji}</span>`:''}
         <span class="journal-entry-date">${dateLabel}</span>
@@ -2348,15 +2445,18 @@ async function renderJournalView(){
   const statusTxt=journalSaveStatus==='saving'?'Saving…':journalSaveStatus==='unsaved'?'Unsaved changes':'Saved';
   const placeholder=journalSelDate===td()?'How are you directing your will today?':'Write your thoughts…';
   const bodyVal=(selEntry?.body||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const showLeft=journalPanel==='left'||journalPanel===undefined;
+  const showRight=journalPanel==='right'||journalPanel===undefined;
   area.innerHTML=`<div class="journal-wrap">
-    <div class="journal-left show" id="j-left">
+    <div class="journal-left${showLeft?' j-active':''}" id="j-left">
       <div class="journal-header">
         <button class="journal-new-btn" onclick="journalNewEntry()">+ New Entry</button>
         <input class="journal-search" placeholder="Search…" value="${journalSearch.replace(/"/g,'&quot;')}" oninput="journalSearch=this.value;journalLoaded=true;renderJournalView()"/>
       </div>
       <div class="journal-list">${entryList}</div>
     </div>
-    <div class="journal-right show" id="j-right">
+    <div class="journal-right${showRight?' j-active':''}" id="j-right">
+      <div class="journal-back-btn" onclick="journalShowList()">← All entries</div>
       <div class="journal-editor" id="journal-editor">
         <div class="journal-date-hdr">${dateHdr}</div>
         <div class="journal-mood-row">${moodRow}</div>
@@ -2401,8 +2501,9 @@ async function journalSaveNow(){
     else{journalEntries.unshift({id:r.id,entry_date:journalSelDate,title,body,mood:null,word_count:words});}
   }catch(e){journalSaveStatus='unsaved';if(statusEl)statusEl.textContent='Unsaved changes';}
 }
+function journalShowList(){journalPanel='left';renderJournalView();}
 async function journalNewEntry(){
-  journalSelDate=td();journalLoaded=true;
+  journalSelDate=td();journalPanel='right';journalLoaded=true;
   renderJournalView();
   setTimeout(()=>{const ta=document.getElementById('j-body');if(ta)ta.focus();},100);
 }
