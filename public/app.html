@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Irada">
 <meta name="theme-color" content="#1a1714">
 <title>Irada</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -137,7 +138,7 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .tbr{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .syncbtn{display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:var(--r);font-size:12px;font-family:var(--font);font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--t2);white-space:nowrap}
 .syncbtn:hover{border-color:var(--bh);color:var(--text)}
-.syncbtn.synced{border-color:var(--green);color:var(--green);background:var(--gbg)}
+.syncbtn.synced{border-color:var(--accent);color:var(--accent);background:#1a1714}
 .syncbtn.errbtn{border-color:var(--danger);color:var(--danger);background:var(--dbg)}
 .syncbtn.loading{opacity:.6;pointer-events:none}
 .bpri{display:flex;align-items:center;gap:4px;background:var(--accent);color:#fff;border:none;padding:7px 12px;border-radius:var(--r);font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer}
@@ -308,6 +309,21 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .mxbt{width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;color:var(--t2);font-size:11px}
 .mxbt:hover{border-color:var(--bh)}.mxbt.del:hover{background:var(--dbg);color:var(--danger);border-color:#fca5a5}
 .mxemp{font-size:11px;color:var(--t3);padding:12px 8px;font-style:italic;text-align:center}
+.mxhide-btn{font-size:10px;color:var(--t3);cursor:pointer;padding:2px 5px;border-radius:3px;border:1px solid transparent;flex-shrink:0;opacity:0;transition:opacity .15s}
+.mxcard:hover .mxhide-btn{opacity:1}
+.mxcard:hover .mxhide-btn:hover{background:var(--dbg);color:var(--danger);border-color:#fca5a5}
+.mxfbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+.mxfbar select{font-size:12px;font-family:var(--font);padding:4px 8px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text);cursor:pointer}
+.mxfbar-badge{font-size:11px;color:var(--t3);margin-left:auto}
+.mxfbar-badge span{background:var(--al);color:var(--accent);border-radius:10px;padding:1px 7px;font-weight:600;margin-left:4px;cursor:pointer}
+.mxhid-panel{border-top:1.5px solid var(--border);flex-shrink:0;max-height:180px;overflow-y:auto;background:var(--surface)}
+.mxhid-hdr{padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
+.mxhid-hdr:hover{color:var(--text)}
+.mxhid-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:12px;border-top:1px solid var(--border)}
+.mxhid-item:first-of-type{border-top:none}
+.mxhid-nm{flex:1;color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mxhid-restore{font-size:11px;color:var(--accent);cursor:pointer;padding:2px 6px;border:1px solid var(--accent);border-radius:4px;flex-shrink:0}
+.mxhid-restore:hover{background:var(--al)}
 @media(max-width:700px){.mxq{min-height:150px}}
 
 /* CALENDAR */
@@ -1149,6 +1165,26 @@ async function renderSettings(){
         </div>
       </div>
 
+      ${(s.has_todoist||s.has_ticktick)?`
+      <div class="set-section">
+        <div class="set-hdr"><div class="set-hdr-title">Project Name Mappings</div><div class="set-hdr-sub">Map Todoist/TickTick project names (with emoji) to your Irada project names</div></div>
+        <div class="set-row" style="flex-direction:column;align-items:stretch">
+          <div class="set-row-sub" style="margin-bottom:8px">Add a row for each project where the external name differs from your Irada name, e.g. "Work 🚀" → "Work". Emoji is stripped automatically — use this only for name differences.</div>
+          <div id="pm-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+            ${(s.project_mappings||[]).map((m,i)=>`<div style="display:flex;gap:6px;align-items:center">
+              <input class="set-input pm-from" data-i="${i}" style="flex:1;margin:0" value="${(m.from||'').replace(/"/g,'&quot;')}" placeholder="External name (e.g. Work 🚀)"/>
+              <span style="color:var(--t3);flex-shrink:0">→</span>
+              <input class="set-input pm-to" data-i="${i}" style="flex:1;margin:0" value="${(m.to||'').replace(/"/g,'&quot;')}" placeholder="Irada project name"/>
+              <button class="set-btn danger" onclick="removePM(${i})" style="padding:4px 8px;flex-shrink:0">✕</button>
+            </div>`).join('')}
+          </div>
+          <div class="set-acts">
+            <button class="set-btn" onclick="addPMRow()">+ Add mapping</button>
+            <button class="set-btn primary" onclick="savePM()">Save mappings</button>
+          </div>
+        </div>
+      </div>`:''}
+
     </div>`;
   if(s.gcal_connected)setTimeout(loadGcalCalendars,100);
   }catch(e){area.innerHTML=`<div style="padding:32px;color:var(--danger)">Failed to load settings: ${e.message}</div>`;}
@@ -1179,6 +1215,23 @@ async function saveTickTick(){
 async function disconnectService(svc){
   if(!confirm(`Disconnect ${svc}? You can reconnect at any time.`))return;
   await POST('/settings/disconnect',{service:svc});toast(`${svc} disconnected`);renderSettings();
+}
+function addPMRow(){
+  const list=document.getElementById('pm-list');if(!list)return;
+  const i=list.querySelectorAll('.pm-from').length;
+  const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center';
+  row.innerHTML=`<input class="set-input pm-from" data-i="${i}" style="flex:1;margin:0" placeholder="External name (e.g. Work 🚀)"/><span style="color:var(--t3);flex-shrink:0">→</span><input class="set-input pm-to" data-i="${i}" style="flex:1;margin:0" placeholder="Irada project name"/><button class="set-btn danger" onclick="this.closest('div').remove()" style="padding:4px 8px;flex-shrink:0">✕</button>`;
+  list.appendChild(row);
+}
+function removePM(i){
+  const list=document.getElementById('pm-list');if(!list)return;
+  const rows=list.children;if(rows[i])rows[i].remove();
+}
+async function savePM(){
+  const froms=[...document.querySelectorAll('.pm-from')].map(el=>el.value.trim());
+  const tos=[...document.querySelectorAll('.pm-to')].map(el=>el.value.trim());
+  const mappings=froms.map((f,i)=>({from:f,to:tos[i]})).filter(m=>m.from&&m.to);
+  await PATCH('/settings',{project_mappings:mappings});toast('Project mappings saved');
 }
 async function loadGcalCalendars(){
   const el=document.getElementById('gcal-cal-list');if(!el)return;
@@ -1539,11 +1592,25 @@ async function togSecBlock(sid,pid,hdr){
 }
 
 // ── MATRIX WITH POINTER DRAG ──────────────────────────────────
+let mxProjFilter='';
+let mxHidOpen=false;
 function renderMatrix(){
   const area=document.getElementById('tarea');
   area.style.cssText='padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:0;';
-  const t=td(),pending=tasks.filter(tk=>!tk.is_done&&!tk.parent_id);
-  const byQ={q1:pending.filter(tk=>tk.is_urgent&&tk.is_important),q2:pending.filter(tk=>!tk.is_urgent&&tk.is_important),q3:pending.filter(tk=>tk.is_urgent&&!tk.is_important),q4:pending.filter(tk=>!tk.is_urgent&&!tk.is_important)};
+  const t=td();
+  const allPending=tasks.filter(tk=>!tk.is_done&&!tk.parent_id);
+  const hiddenTasks=allPending.filter(tk=>!tk.in_matrix);
+  const visible=allPending.filter(tk=>tk.in_matrix!==0);
+  const projFiltered=mxProjFilter?visible.filter(tk=>tk.project_id===mxProjFilter):visible;
+  const byQ={
+    q1:projFiltered.filter(tk=>tk.is_urgent&&tk.is_important),
+    q2:projFiltered.filter(tk=>!tk.is_urgent&&tk.is_important),
+    q3:projFiltered.filter(tk=>tk.is_urgent&&!tk.is_important),
+    q4:projFiltered.filter(tk=>!tk.is_urgent&&!tk.is_important)
+  };
+  const projs=projects.filter(p=>visible.some(tk=>tk.project_id===p.id));
+  const projOpts=`<option value="">All projects</option>`+projs.map(p=>`<option value="${p.id}"${mxProjFilter===p.id?' selected':''}>${p.name}</option>`).join('');
+  const hidCount=hiddenTasks.length;
   const mkQ=qk=>{
     const def=QDEFS[qk],tklist=byQ[qk];
     const cards=tklist.length?tklist.map(tk=>{
@@ -1551,19 +1618,39 @@ function renderMatrix(){
       return`<div class="mxcard${tk.is_done?' done':''}" id="mxc-${tk.id}">
         <div class="mxchk" onclick="togDone('${tk.id}')">${tk.is_done?`<svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div>
         <div style="flex:1;min-width:0"><div class="mxnm">${tk.name}</div>${lbl?`<div class="mxdue${isOv?' ov':isToday?' tod':''}">Due: ${lbl}</div>`:''}</div>
-        <div class="mxbts"><div class="mxbt" onclick="startEdit('${tk.id}')">✎</div><div class="mxbt del" onclick="delTask('${tk.id}')">🗑</div></div>
+        <div class="mxbts"><div class="mxhide-btn" onclick="hideFromMatrix('${tk.id}')" title="Exclude from matrix">✕ Hide</div><div class="mxbt" onclick="startEdit('${tk.id}')">✎</div><div class="mxbt del" onclick="delTask('${tk.id}')">🗑</div></div>
       </div>`;}).join(''):`<div class="mxemp">Drop tasks here</div>`;
     return`<div class="mxq ${qk}" id="mxq-${qk}">
       <div class="mxqh"><div class="mxql">${def.label}</div><div class="mxqt">${qk==='q1'?'Urgent + Important':qk==='q2'?'Not Urgent + Important':qk==='q3'?'Urgent + Not Important':'Not Urgent + Not Important'}</div><div class="mxqs">${def.sub}</div></div>
       <div class="mxbody" id="mxb-${qk}">${cards}</div>
     </div>`;
   };
-  area.innerHTML=`<div class="mtx-wrap"><div class="mtx-grid">
+  const hidPanel=hidCount?`<div class="mxhid-panel">
+    <div class="mxhid-hdr" onclick="mxHidOpen=!mxHidOpen;renderMatrix()">${mxHidOpen?'▾':'▸'} Hidden tasks <span style="background:var(--al);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">${hidCount}</span></div>
+    ${mxHidOpen?hiddenTasks.map(tk=>`<div class="mxhid-item"><div class="mxhid-nm">${tk.name}</div><div class="mxhid-restore" onclick="showInMatrix('${tk.id}')">+ Show</div></div>`).join(''):''}
+  </div>`:'' ;
+  area.innerHTML=`<div class="mxfbar">
+    <select onchange="mxProjFilter=this.value;renderMatrix()">${projOpts}</select>
+    ${hidCount?`<div class="mxfbar-badge">${hidCount} hidden<span onclick="mxHidOpen=!mxHidOpen;renderMatrix()">view</span></div>`:''}
+  </div><div class="mtx-wrap" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0"><div class="mtx-grid">
     <div class="mxax"></div><div class="mxax">URGENT</div><div class="mxax">NOT URGENT</div>
     <div class="mxax"><span class="mxax-s">IMPORTANT</span></div>${mkQ('q1')}${mkQ('q2')}
     <div class="mxax"><span class="mxax-s">NOT IMPORTANT</span></div>${mkQ('q3')}${mkQ('q4')}
-  </div></div>`;
+  </div></div>${hidPanel}`;
   setTimeout(initMatrixDrag,0);
+}
+async function hideFromMatrix(id){
+  const tk=tasks.find(t=>t.id===id);if(!tk)return;
+  tk.in_matrix=0;
+  renderMatrix();
+  toast('Task hidden from matrix — click "Hidden tasks" to restore');
+  await PATCH('/tasks/'+id,{in_matrix:0});
+}
+async function showInMatrix(id){
+  const tk=tasks.find(t=>t.id===id);if(!tk)return;
+  tk.in_matrix=1;
+  renderMatrix();
+  await PATCH('/tasks/'+id,{in_matrix:1});
 }
 
 function initMatrixDrag(){
@@ -1572,7 +1659,7 @@ function initMatrixDrag(){
   });
 }
 function startDrag(e){
-  if(e.target.closest('.mxchk,.mxbt'))return;
+  if(e.target.closest('.mxchk,.mxbt,.mxhide-btn'))return;
   e.preventDefault();
   dragEl=e.currentTarget;
   dragId=dragEl.id.replace('mxc-','');

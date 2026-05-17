@@ -103,6 +103,8 @@ db.exec(`
   'ALTER TABLE tasks ADD COLUMN ticktick_task_id TEXT',
   'ALTER TABLE tasks ADD COLUMN is_deleted INTEGER DEFAULT 0',
   'ALTER TABLE tasks ADD COLUMN deleted_at TEXT',
+  'ALTER TABLE tasks ADD COLUMN in_matrix INTEGER DEFAULT 1',
+  'ALTER TABLE users ADD COLUMN user_project_mappings TEXT DEFAULT \'[]\'',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
 // Cleanup: permanently delete tasks soft-deleted more than 30 days ago
@@ -127,11 +129,13 @@ const requireAuth = (req, res, next) => {
 };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const today = () => new Date().toISOString().slice(0, 10);
+const stripEmoji = s => (s||'').replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,'').replace(/\s+/g,' ').trim();
 const parseTask = row => ({
   ...row, tags: JSON.parse(row.tags || '[]'),
   is_done: !!row.is_done, is_urgent: !!row.is_urgent,
   is_important: !!row.is_important, today_pick: !!row.today_pick,
   is_deleted: !!row.is_deleted,
+  in_matrix: row.in_matrix === undefined ? 1 : (row.in_matrix === 0 ? 0 : 1),
   notes: row.notes || '',
 });
 
@@ -304,7 +308,7 @@ function seedUser(id) {
 
 // SETTINGS
 app.get('/api/settings', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars,theme FROM users WHERE id=?').get(req.session.userId);
+  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars,theme,user_project_mappings FROM users WHERE id=?').get(req.session.userId);
   res.json({
     ...user,
     gcal_connected: !!user.gcal_connected,
@@ -312,16 +316,18 @@ app.get('/api/settings', requireAuth, (req, res) => {
     has_ticktick: !!user.ticktick_token,
     selected_calendars: JSON.parse(user.selected_calendars || '[]'),
     theme: user.theme || 'light',
+    project_mappings: JSON.parse(user.user_project_mappings || '[]'),
   });
 });
 app.patch('/api/settings', requireAuth, async (req, res) => {
-  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars, theme } = req.body;
+  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars, theme, project_mappings } = req.body;
   const updates=[]; const vals=[];
   if (name !== undefined) { updates.push('name=?'); vals.push(name); }
   if (todoist_token !== undefined) { updates.push('todoist_token=?'); vals.push(todoist_token || null); }
   if (ticktick_token !== undefined) { updates.push('ticktick_token=?'); vals.push(ticktick_token || null); }
   if (selected_calendars !== undefined) { updates.push('selected_calendars=?'); vals.push(JSON.stringify(selected_calendars)); }
   if (theme !== undefined) { updates.push('theme=?'); vals.push(theme === 'dark' ? 'dark' : 'light'); }
+  if (project_mappings !== undefined) { updates.push('user_project_mappings=?'); vals.push(JSON.stringify(Array.isArray(project_mappings)?project_mappings:[])); }
   if (new_password && current_password) {
     const user = db.prepare('SELECT password_hash FROM users WHERE id=?').get(req.session.userId);
     if (user.password_hash) {
@@ -487,8 +493,8 @@ app.post('/api/todoist/sync', requireAuth, async (req, res) => {
     if (!user?.todoist_token) return res.status(400).json({ error: 'Todoist not connected. Add your API token in Settings.' });
     const token = user.todoist_token;
     const [tdProjects,tdTasks] = await Promise.all([tdReq(token,'GET','/projects'),tdReq(token,'GET','/tasks')]);
-    const tdProjByName=Object.fromEntries(tdProjects.map(p=>[p.name.toLowerCase(),p.id]));
-    const tdProjById=Object.fromEntries(tdProjects.map(p=>[p.id,p.name]));
+    const tdProjByName=Object.fromEntries(tdProjects.map(p=>[stripEmoji(p.name).toLowerCase(),p.id]));
+    const tdProjById=Object.fromEntries(tdProjects.map(p=>[p.id,stripEmoji(p.name)]));
     let pushed=0,pulled=0;
     const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
     for(const task of localTasks){
@@ -534,8 +540,8 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     if (!user?.ticktick_token) return res.status(400).json({ error: 'TickTick not connected. Add your access token in Settings.' });
     const token = user.ticktick_token;
     const ttProjects = await ttReq(token,'GET','/project');
-    const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[p.name.toLowerCase(),p.id]));
-    const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,p.name]));
+    const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[stripEmoji(p.name).toLowerCase(),p.id]));
+    const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,stripEmoji(p.name)]));
     let pushed=0,pulled=0;
     const localTasks=db.prepare('SELECT t.*,p.name as proj_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0 AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
     for(const task of localTasks){
@@ -616,7 +622,7 @@ app.post('/api/tasks', requireAuth, (req, res) => {
 });
 app.patch('/api/tasks/:id', requireAuth, (req, res) => {
   const t=req.body;
-  db.prepare(`UPDATE tasks SET name=COALESCE(?,name),notes=COALESCE(?,notes),due_date=?,priority=COALESCE(?,priority),project_id=?,section_id=?,tags=COALESCE(?,tags),is_done=COALESCE(?,is_done),is_urgent=COALESCE(?,is_urgent),is_important=COALESCE(?,is_important),pomos=COALESCE(?,pomos),today_pick=COALESCE(?,today_pick) WHERE id=? AND user_id=?`).run(t.name??null,t.notes??null,'due_date'in t?(t.due_date||null):undefined,t.priority??null,'project_id'in t?(t.project_id||null):undefined,'section_id'in t?(t.section_id||null):undefined,t.tags?JSON.stringify(t.tags):null,t.is_done!==undefined?(t.is_done?1:0):null,t.is_urgent!==undefined?(t.is_urgent?1:0):null,t.is_important!==undefined?(t.is_important?1:0):null,t.pomos??null,t.today_pick!==undefined?(t.today_pick?1:0):null,req.params.id,req.session.userId);
+  db.prepare(`UPDATE tasks SET name=COALESCE(?,name),notes=COALESCE(?,notes),due_date=?,priority=COALESCE(?,priority),project_id=?,section_id=?,tags=COALESCE(?,tags),is_done=COALESCE(?,is_done),is_urgent=COALESCE(?,is_urgent),is_important=COALESCE(?,is_important),pomos=COALESCE(?,pomos),today_pick=COALESCE(?,today_pick),in_matrix=COALESCE(?,in_matrix) WHERE id=? AND user_id=?`).run(t.name??null,t.notes??null,'due_date'in t?(t.due_date||null):undefined,t.priority??null,'project_id'in t?(t.project_id||null):undefined,'section_id'in t?(t.section_id||null):undefined,t.tags?JSON.stringify(t.tags):null,t.is_done!==undefined?(t.is_done?1:0):null,t.is_urgent!==undefined?(t.is_urgent?1:0):null,t.is_important!==undefined?(t.is_important?1:0):null,t.pomos??null,t.today_pick!==undefined?(t.today_pick?1:0):null,t.in_matrix!==undefined?(t.in_matrix?1:0):null,req.params.id,req.session.userId);
   res.json({ok:true});
 });
 app.post('/api/tasks/:id/restore', requireAuth, (req, res) => {
