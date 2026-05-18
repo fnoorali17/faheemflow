@@ -759,6 +759,8 @@ html.dark .journal-right{background:#221f1b}
 html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
 .ppl-detail{position:absolute;right:0;top:0;bottom:0;width:380px;background:var(--surface);border-left:2px solid var(--border);display:flex;flex-direction:column;z-index:10;transform:translateX(100%);transition:transform .25s;overflow:hidden}
 .ppl-detail.open{transform:translateX(0)}
+.ppl-close{width:36px;height:36px;min-width:36px;display:flex;align-items:center;justify-content:center;border:none;background:none;cursor:pointer;font-size:20px;color:var(--t3);border-radius:6px}
+.ppl-close:hover{background:var(--bg);color:var(--text)}
 .ppl-dhdr{padding:14px 16px;border-bottom:1.5px solid var(--border);display:flex;align-items:flex-start;gap:12px;flex-shrink:0}
 .ppl-dhdr-info{flex:1;min-width:0}
 .ppl-dbody{flex:1;overflow-y:auto;padding:14px 16px 40px}
@@ -790,7 +792,8 @@ html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
 .ppl-type-btn{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--r);text-align:center;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--bg);color:var(--t2)}
 .ppl-type-btn.on{border-color:var(--accent);background:var(--al);color:var(--accent)}
 @media(max-width:700px){
-  .ppl-detail{width:100%;border-left:none;border-top:2px solid var(--border)}
+  .ppl-detail{width:100%;border-left:none;border-top:none}
+  .ppl-mobile-back{display:flex!important}
   .ppl-row-acts{opacity:1}
   .ppl-grid{grid-template-columns:1fr}
 }
@@ -2760,6 +2763,10 @@ function buildPplDetail(p){
   const relTasks=tasks.filter(t=>t.linked_person_id===p.id&&!t.is_done);
   const relTasksHtml=relTasks.length?`<div class="ppl-dsec"><div class="ppl-dsh">Related tasks</div>${relTasks.map(t=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px"><div class="tchk" style="width:14px;height:14px;border-radius:50%;border:1.5px solid var(--bh);cursor:pointer;flex-shrink:0" onclick="togDone('${t.id}')"></div><span style="flex:1;color:var(--text)">${t.name}</span>${t.due_date?`<span style="font-size:10px;color:var(--t3)">${fmtD(t.due_date)}</span>`:''}</div>`).join('')}</div>`:'' ;
   return`<div class="ppl-detail" id="ppl-detail">
+    <div style="display:none;align-items:center;gap:8px;padding:8px 12px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0" class="ppl-mobile-back">
+      <button class="ppl-close" onclick="pplClose()" style="font-size:16px">←</button>
+      <span style="font-size:13px;font-weight:600;color:var(--t2)">All contacts</span>
+    </div>
     <div class="ppl-dhdr">
       <div class="ppl-av" style="width:52px;height:52px;font-size:18px;background:${p.avatar_color||'#c4922a'}">${pplInitials(p.name)}</div>
       <div class="ppl-dhdr-info">
@@ -2767,7 +2774,10 @@ function buildPplDetail(p){
         <div style="font-size:12px;color:var(--t3)">${[p.role,p.organization].filter(Boolean).join(' · ')||'&nbsp;'}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:4px">${pplPill(p.type)}<span style="display:flex;align-items:center">${pplDot(p)}<span style="font-size:11px;color:${sc};font-weight:600">${p.follow_up_status_label}</span></span></div>
       </div>
-      <div style="display:flex;gap:5px;flex-shrink:0"><button class="bsm" style="font-size:11px;padding:3px 8px" onclick="openPersonForm('${p.id}')">✎</button><button class="sb-x" onclick="pplClose()">×</button></div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="bsm" style="font-size:11px;padding:3px 8px" onclick="openPersonForm('${p.id}')">✎</button>
+        <button class="ppl-close" onclick="pplClose()" title="Close">×</button>
+      </div>
     </div>
     <div class="ppl-dbody">
       ${p.email||p.phone?`<div class="ppl-dsec">${p.email?`<div style="font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);width:44px">Email</span><a href="mailto:${p.email}" style="color:var(--accent);text-decoration:none;font-size:13px">${p.email}</a></div>`:''} ${p.phone?`<div style="font-size:12px;display:flex;align-items:center;gap:6px"><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);width:44px">Phone</span><a href="tel:${p.phone}" style="color:var(--accent);text-decoration:none;font-size:13px">${p.phone}</a></div>`:''}</div>`:''}
@@ -2886,6 +2896,18 @@ async function savePplForm(){
     closePplForm();pplLoaded=true;renderPeopleView();
   }catch(e){toast('Failed to save contact');}
 }
+
+// ── PEOPLE PANEL DISMISS HANDLERS ────────────────────────────
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'&&selectedPersonId)pplClose();
+});
+// Click-outside: clicking .ppl-main (list area) while panel is open closes it
+document.addEventListener('click', e=>{
+  if(!selectedPersonId)return;
+  const panel=document.getElementById('ppl-detail');
+  if(!panel||!panel.classList.contains('open'))return;
+  if(!panel.contains(e.target)&&e.target.closest('.ppl-main'))pplClose();
+});
 
 // ── INLINE EDITING ───────────────────────────────────────────
 function makeInlineInput(el, currentVal, onSave) {
