@@ -1439,7 +1439,7 @@ function setV(v,el){
   if(v!=='habits'&&v!=='plan')document.getElementById('taw').classList.remove('open');
   if(v==='settings'||v==='journal'||v==='deleted'||v==='people'){ab.style.display='none';}
   if(v==='journal')journalLoaded=false;
-  if(v==='people'){pplLoaded=false;selectedPersonId=null;pplLogFormOpen=false;}
+  if(v==='people'){pplLoaded=false;selectedPersonId=null;pplLogFormOpen=false;pplFilterType='';pplFilterStatus='';}
   closeSB();render();
 }
 function setTagV(tag){tagFilter=tag;view='tag';editId=null;document.querySelectorAll('.ni,.tnav,.pr,.sch').forEach(i=>i.classList.remove('on'));document.querySelector(`.tnav[data-tag="${tag}"]`)?.classList.add('on');closeSB();render();}
@@ -1523,9 +1523,11 @@ document.addEventListener('keydown',e=>{
     return;
   }
   // Escape — close add task form (global fallback, input-level handler already handles focused case)
-  if(e.key==='Escape'&&tawOpen&&!inInput){
-    closeAdd();
-  }
+  if(e.key==='Escape'&&tawOpen&&!inInput){closeAdd();return;}
+  // Escape — close person detail panel
+  if(e.key==='Escape'&&!inInput&&selectedPersonId){pplClose();return;}
+  // Escape — close open modals
+  if(e.key==='Escape'&&!inInput){document.querySelectorAll('.mov.open').forEach(m=>m.classList.remove('open'));}
 });
 async function saveTask(){
   const raw=AI.value.trim();if(!raw)return;
@@ -2693,16 +2695,22 @@ async function renderPeopleView(){
   const overdue=people.filter(p=>p.follow_up_status==='overdue').length;
   const dueSoon=people.filter(p=>p.follow_up_status==='due_soon').length;
   const sumbar=`<div class="ppl-sumbar">
-    <div class="ppl-sum-chip${pplFilterStatus==='overdue'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='overdue'?'':'overdue';pplLoaded=true;renderPeopleView()">🔴 ${overdue} overdue</div>
-    <div class="ppl-sum-chip${pplFilterStatus==='due_soon'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='due_soon'?'':'due_soon';pplLoaded=true;renderPeopleView()">🟡 ${dueSoon} due this week</div>
+    <div class="ppl-sum-chip${pplFilterStatus==='overdue'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='overdue'?'':'overdue';pplLoaded=true;renderPeopleView()" title="${pplFilterStatus==='overdue'?'Click to clear filter':'Filter to overdue'}">🔴 ${overdue} overdue</div>
+    <div class="ppl-sum-chip${pplFilterStatus==='due_soon'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='due_soon'?'':'due_soon';pplLoaded=true;renderPeopleView()" title="${pplFilterStatus==='due_soon'?'Click to clear filter':'Filter to due soon'}">🟡 ${dueSoon} due this week</div>
     <div class="ppl-sum-chip" style="cursor:default">✓ ${total} contacts</div>
+    ${pplFilterStatus||pplFilterType?`<button class="ppl-sum-chip" onclick="pplFilterStatus='';pplFilterType='';pplLoaded=true;renderPeopleView()" style="margin-left:auto;color:var(--danger);border-color:var(--danger)">✕ Clear filter</button>`:''}
   </div>`;
   const controls=`<div class="ppl-controls">
     <div style="display:flex;gap:4px">
       <div class="ppl-vtab${pplViewMode==='list'?' on':''}" onclick="pplViewMode='list';pplLoaded=true;renderPeopleView()" title="List">☰</div>
       <div class="ppl-vtab${pplViewMode==='card'?' on':''}" onclick="pplViewMode='card';pplLoaded=true;renderPeopleView()" title="Cards">⊞</div>
     </div>
-    <select class="ppl-sel" onchange="pplFilterType=this.value;pplLoaded=true;renderPeopleView()"><option value="">All types</option><option value="professional"${pplFilterType==='professional'?' selected':''}>Professional</option><option value="personal"${pplFilterType==='personal'?' selected':''}>Personal</option><option value="other"${pplFilterType==='other'?' selected':''}>Other</option></select>
+    <div style="display:flex;gap:3px;flex-shrink:0">
+      <button class="ppl-vtab${!pplFilterType?' on':''}" onclick="pplFilterType='';pplLoaded=true;renderPeopleView()">All</button>
+      <button class="ppl-vtab${pplFilterType==='professional'?' on':''}" onclick="pplFilterType='professional';pplLoaded=true;renderPeopleView()">Pro</button>
+      <button class="ppl-vtab${pplFilterType==='personal'?' on':''}" onclick="pplFilterType='personal';pplLoaded=true;renderPeopleView()">Personal</button>
+      <button class="ppl-vtab${pplFilterType==='other'?' on':''}" onclick="pplFilterType='other';pplLoaded=true;renderPeopleView()">Other</button>
+    </div>
     <select class="ppl-sel" onchange="pplSort=this.value;pplLoaded=true;renderPeopleView()"><option value="name"${pplSort==='name'?' selected':''}>Name</option><option value="last_contacted"${pplSort==='last_contacted'?' selected':''}>Last contacted</option><option value="follow_up_date"${pplSort==='follow_up_date'?' selected':''}>Follow-up date</option><option value="status"${pplSort==='status'?' selected':''}>Status</option></select>
     <input class="ppl-search" placeholder="Search…" value="${pplSearch.replace(/"/g,'&quot;')}" oninput="pplSearch=this.value;pplLoaded=true;renderPeopleView()"/>
     <button class="bpri" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="openPersonForm()">+ Add person</button>
@@ -2898,9 +2906,7 @@ async function savePplForm(){
 }
 
 // ── PEOPLE PANEL DISMISS HANDLERS ────────────────────────────
-document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'&&selectedPersonId)pplClose();
-});
+// (Escape is handled in the global keydown listener above)
 // Click-outside: clicking .ppl-main (list area) while panel is open closes it
 document.addEventListener('click', e=>{
   if(!selectedPersonId)return;
