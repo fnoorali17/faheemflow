@@ -599,9 +599,33 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     for(const proj of (ttProjects||[])){
       try{
         const data=await ttReq(token,'GET',`/project/${proj.id}/data`);
-        const cols=data.columns||[];
-        ttProjData[proj.id]={tasks:data.tasks||[],cols,colById:Object.fromEntries(cols.map(c=>[c.id,stripEmoji(c.name)])),colByName:Object.fromEntries(cols.map(c=>[stripEmoji(c.name).toLowerCase(),c.id]))};
-      }catch(e){ttProjData[proj.id]={tasks:[],cols:[],colById:{},colByName:{}};}
+        // Log full response shape to diagnose field names
+        console.log('TT /data for project', proj.id, proj.name, '→',
+          'tasks:', data.tasks?.length??0,
+          'columns:', data.columns?.length??'MISSING',
+          'response keys:', Object.keys(data).join(', '),
+          'first column sample:', JSON.stringify(data.columns?.[0]||data.column?.[0]||data.lists?.[0]||null)
+        );
+        // Try multiple possible field names TickTick might use
+        const cols=data.columns||data.column||data.lists||data.sections||data.kanbanColumns||[];
+        // Normalise column objects — field names may vary
+        const normalizeCol=(c)=>({id:c.id||c.columnId||c.listId,name:c.name||c.title||c.columnName||''});
+        const normalizedCols=cols.map(normalizeCol).filter(c=>c.id);
+        ttProjData[proj.id]={
+          tasks:data.tasks||[],
+          cols:normalizedCols,
+          colById:Object.fromEntries(normalizedCols.map(c=>[c.id,stripEmoji(c.name)])),
+          colByName:Object.fromEntries(normalizedCols.map(c=>[stripEmoji(c.name).toLowerCase(),c.id]))
+        };
+        if(normalizedCols.length>0){
+          console.log('TT columns found for', proj.name, ':', normalizedCols.map(c=>c.name).join(', '));
+        } else {
+          console.warn('TT NO COLUMNS for project:', proj.name, '— full response keys:', Object.keys(data).join(', '));
+        }
+      }catch(e){
+        console.error('TT /data fetch FAILED for project', proj.id, proj.name, ':', e.message);
+        ttProjData[proj.id]={tasks:[],cols:[],colById:{},colByName:{}};
+      }
     }
     let pushed=0,pulled=0;
     // PUSH: local → TickTick (with section → column mapping)
@@ -630,10 +654,17 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
         let localProjId=null;
         if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
         // Map TickTick column → Irada section (prefer ticktick_section_id match)
+        // Try multiple field names the TickTick API might use for the column/section
+        const taskColumnId=ttt.columnId||ttt.column_id||ttt.listId||ttt.sectionId||null;
         let localSecId=null;
-        if(ttt.columnId&&localProjId){
-          const colName=pd.colById[ttt.columnId];
-          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND (ticktick_section_id=? OR LOWER(name)=LOWER(?))').get(userId,localProjId,ttt.columnId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,localProjId,userId,colName,ttt.columnId,1,99);localSecId=sid;}else{if(!ls.ticktick_section_id)db.prepare('UPDATE sections SET ticktick_section_id=? WHERE id=?').run(ttt.columnId,ls.id);localSecId=ls.id;}}
+        if(taskColumnId&&localProjId){
+          if(!pd.colById[taskColumnId]){
+            console.warn('TT task', ttt.title, 'has columnId', taskColumnId,
+              'but no matching column in project', proj.id,
+              '— known colIds:', Object.keys(pd.colById).join(', ')||'(none)');
+          }
+          const colName=pd.colById[taskColumnId];
+          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND (ticktick_section_id=? OR LOWER(name)=LOWER(?))').get(userId,localProjId,taskColumnId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,localProjId,userId,colName,taskColumnId,1,99);localSecId=sid;}else{if(!ls.ticktick_section_id)db.prepare('UPDATE sections SET ticktick_section_id=? WHERE id=?').run(taskColumnId,ls.id);localSecId=ls.id;}}
         }
         const pri=ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
         db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,notes,due_date,priority,project_id,section_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,ttt.content||'',ttt.dueDate?ttt.dueDate.slice(0,10):null,pri,localProjId,localSecId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
