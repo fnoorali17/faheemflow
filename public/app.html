@@ -723,7 +723,8 @@ html.dark .journal-right{background:#221f1b}
 .ppl-wrap{flex:1;display:flex;overflow:hidden;min-height:0;position:relative}
 .ppl-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .ppl-sumbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
-.ppl-sum-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;color:var(--t2);user-select:none;cursor:default}
+.ppl-sum-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;color:var(--t2);user-select:none;cursor:pointer}
+.ppl-sum-chip:hover{border-color:var(--bh);color:var(--text)}.ppl-sum-chip.act{border-color:var(--accent);background:var(--al);color:var(--accent)}
 .ppl-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
 .ppl-controls-left{display:flex;gap:4px;flex-shrink:0}
 .ppl-controls-mid{display:flex;gap:3px;justify-content:center;flex:1}
@@ -2704,8 +2705,8 @@ async function renderPeopleView(){
   const dueSoon=people.filter(p=>p.follow_up_status==='due_soon').length;
   const hasFilter=!!(pplFilterType||pplFilterStatus||pplSearch);
   const sumbar=`<div class="ppl-sumbar">
-    <div class="ppl-sum-chip">🔴 ${overdue} overdue</div>
-    <div class="ppl-sum-chip">🟡 ${dueSoon} due this week</div>
+    <div class="ppl-sum-chip${pplFilterStatus==='overdue'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='overdue'?'':'overdue';pplLoaded=true;renderPeopleView()">🔴 ${overdue} overdue</div>
+    <div class="ppl-sum-chip${pplFilterStatus==='due_soon'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='due_soon'?'':'due_soon';pplLoaded=true;renderPeopleView()">🟡 ${dueSoon} due this week</div>
     <div class="ppl-sum-chip">✓ ${total} contacts</div>
   </div>`;
   const controls=`<div class="ppl-controls">
