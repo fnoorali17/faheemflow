@@ -996,6 +996,25 @@ app.get('/admin/waitlist', (req, res) => {
   res.json({ count: rows.length, emails: rows });
 });
 
+app.delete('/admin/reset-user-data', (req, res) => {
+  if (req.query.secret !== ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email required' });
+  const user = db.prepare('SELECT id FROM users WHERE email=?').get(email.toLowerCase().trim());
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const uid = user.id;
+  const counts = db.transaction(() => ({
+    tasks:    db.prepare('DELETE FROM tasks    WHERE user_id=?').run(uid).changes,
+    sections: db.prepare('DELETE FROM sections WHERE user_id=?').run(uid).changes,
+    projects: db.prepare('DELETE FROM projects WHERE user_id=?').run(uid).changes,
+    habits:   db.prepare('DELETE FROM habits   WHERE user_id=?').run(uid).changes,
+    journal:  db.prepare('DELETE FROM journal_entries WHERE user_id=?').run(uid).changes,
+    people:   db.prepare('DELETE FROM people   WHERE user_id=?').run(uid).changes,
+  }))();
+  console.log(`Admin reset for ${email}:`, counts);
+  res.json({ ok: true, email, deleted: counts });
+});
+
 // WAITLIST
 db.exec(`CREATE TABLE IF NOT EXISTS waitlist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
