@@ -723,14 +723,22 @@ html.dark .journal-right{background:#221f1b}
 .ppl-wrap{flex:1;display:flex;overflow:hidden;min-height:0;position:relative}
 .ppl-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .ppl-sumbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
-.ppl-sum-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;cursor:pointer;color:var(--t2);user-select:none}
-.ppl-sum-chip:hover{border-color:var(--bh);color:var(--text)}.ppl-sum-chip.act{border-color:var(--accent);background:var(--al);color:var(--accent)}
-.ppl-controls{display:flex;align-items:center;gap:7px;padding:8px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
-.ppl-search{flex:1;min-width:110px;border:1.5px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none}
+.ppl-sum-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;color:var(--t2);user-select:none;cursor:default}
+.ppl-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1.5px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+.ppl-controls-left{display:flex;gap:4px;flex-shrink:0}
+.ppl-controls-mid{display:flex;gap:3px;justify-content:center;flex:1}
+.ppl-controls-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ppl-search{width:130px;border:1.5px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px;font-family:var(--font);color:var(--text);background:var(--bg);outline:none}
 .ppl-search:focus{border-color:var(--accent)}
 .ppl-sel{font-size:12px;font-family:var(--font);padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text);cursor:pointer}
 .ppl-vtab{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--t2);cursor:pointer;font-size:14px;flex-shrink:0}
 .ppl-vtab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ppl-fpill{display:flex;align-items:center;justify-content:center;min-width:80px;padding:6px 16px;border:1.5px solid var(--border);border-radius:var(--r);background:transparent;color:var(--t2);font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;white-space:nowrap;transition:background .1s,color .1s,border-color .1s}
+.ppl-fpill:hover{border-color:var(--bh);color:var(--text)}
+.ppl-fpill.on{background:#c4922a;color:#1a1714;border-color:#c4922a;font-weight:600}
+.ppl-clr{font-size:11px;padding:5px 10px;border:1.5px solid var(--danger);border-radius:var(--r);background:transparent;color:var(--danger);font-family:var(--font);cursor:pointer;white-space:nowrap}
+.ppl-clr:hover{background:var(--danger);color:#fff}
+@media(max-width:700px){.ppl-controls{flex-wrap:wrap}.ppl-controls-mid{order:3;width:100%}.ppl-controls-right{flex:1}}
 .ppl-content{flex:1;overflow-y:auto;padding:12px 16px 80px}
 .ppl-av{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:700;font-family:var(--font);color:#fff;flex-shrink:0;text-transform:uppercase;letter-spacing:-.02em}
 .ppl-list{display:flex;flex-direction:column;gap:4px}
@@ -2694,26 +2702,29 @@ async function renderPeopleView(){
   const total=people.filter(p=>p.status!=='archived').length;
   const overdue=people.filter(p=>p.follow_up_status==='overdue').length;
   const dueSoon=people.filter(p=>p.follow_up_status==='due_soon').length;
+  const hasFilter=!!(pplFilterType||pplFilterStatus||pplSearch);
   const sumbar=`<div class="ppl-sumbar">
-    <div class="ppl-sum-chip${pplFilterStatus==='overdue'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='overdue'?'':'overdue';pplLoaded=true;renderPeopleView()" title="${pplFilterStatus==='overdue'?'Click to clear filter':'Filter to overdue'}">🔴 ${overdue} overdue</div>
-    <div class="ppl-sum-chip${pplFilterStatus==='due_soon'?' act':''}" onclick="pplFilterStatus=pplFilterStatus==='due_soon'?'':'due_soon';pplLoaded=true;renderPeopleView()" title="${pplFilterStatus==='due_soon'?'Click to clear filter':'Filter to due soon'}">🟡 ${dueSoon} due this week</div>
-    <div class="ppl-sum-chip" style="cursor:default">✓ ${total} contacts</div>
-    ${pplFilterStatus||pplFilterType?`<button class="ppl-sum-chip" onclick="pplFilterStatus='';pplFilterType='';pplLoaded=true;renderPeopleView()" style="margin-left:auto;color:var(--danger);border-color:var(--danger)">✕ Clear filter</button>`:''}
+    <div class="ppl-sum-chip">🔴 ${overdue} overdue</div>
+    <div class="ppl-sum-chip">🟡 ${dueSoon} due this week</div>
+    <div class="ppl-sum-chip">✓ ${total} contacts</div>
   </div>`;
   const controls=`<div class="ppl-controls">
-    <div style="display:flex;gap:4px">
+    <div class="ppl-controls-left">
       <div class="ppl-vtab${pplViewMode==='list'?' on':''}" onclick="pplViewMode='list';pplLoaded=true;renderPeopleView()" title="List">☰</div>
       <div class="ppl-vtab${pplViewMode==='card'?' on':''}" onclick="pplViewMode='card';pplLoaded=true;renderPeopleView()" title="Cards">⊞</div>
     </div>
-    <div style="display:flex;gap:3px;flex-shrink:0">
-      <button class="ppl-vtab${!pplFilterType?' on':''}" onclick="pplFilterType='';pplLoaded=true;renderPeopleView()">All</button>
-      <button class="ppl-vtab${pplFilterType==='professional'?' on':''}" onclick="pplFilterType='professional';pplLoaded=true;renderPeopleView()">Pro</button>
-      <button class="ppl-vtab${pplFilterType==='personal'?' on':''}" onclick="pplFilterType='personal';pplLoaded=true;renderPeopleView()">Personal</button>
-      <button class="ppl-vtab${pplFilterType==='other'?' on':''}" onclick="pplFilterType='other';pplLoaded=true;renderPeopleView()">Other</button>
+    <div class="ppl-controls-mid">
+      <button class="ppl-fpill${!pplFilterType?' on':''}" onclick="pplFilterType='';pplLoaded=true;renderPeopleView()">All</button>
+      <button class="ppl-fpill${pplFilterType==='professional'?' on':''}" onclick="pplFilterType='professional';pplLoaded=true;renderPeopleView()">Professional</button>
+      <button class="ppl-fpill${pplFilterType==='personal'?' on':''}" onclick="pplFilterType='personal';pplLoaded=true;renderPeopleView()">Personal</button>
+      <button class="ppl-fpill${pplFilterType==='other'?' on':''}" onclick="pplFilterType='other';pplLoaded=true;renderPeopleView()">Other</button>
     </div>
-    <select class="ppl-sel" onchange="pplSort=this.value;pplLoaded=true;renderPeopleView()"><option value="name"${pplSort==='name'?' selected':''}>Name</option><option value="last_contacted"${pplSort==='last_contacted'?' selected':''}>Last contacted</option><option value="follow_up_date"${pplSort==='follow_up_date'?' selected':''}>Follow-up date</option><option value="status"${pplSort==='status'?' selected':''}>Status</option></select>
-    <input class="ppl-search" placeholder="Search…" value="${pplSearch.replace(/"/g,'&quot;')}" oninput="pplSearch=this.value;pplLoaded=true;renderPeopleView()"/>
-    <button class="bpri" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="openPersonForm()">+ Add person</button>
+    <div class="ppl-controls-right">
+      <select class="ppl-sel" onchange="pplSort=this.value;pplLoaded=true;renderPeopleView()"><option value="name"${pplSort==='name'?' selected':''}>Name</option><option value="last_contacted"${pplSort==='last_contacted'?' selected':''}>Last contacted</option><option value="follow_up_date"${pplSort==='follow_up_date'?' selected':''}>Follow-up date</option><option value="status"${pplSort==='status'?' selected':''}>Status</option></select>
+      <input class="ppl-search" placeholder="Search…" value="${pplSearch.replace(/"/g,'&quot;')}" oninput="pplSearch=this.value;pplLoaded=true;renderPeopleView()"/>
+      ${hasFilter?`<button class="ppl-clr" onclick="pplFilterType='';pplFilterStatus='';pplSearch='';pplLoaded=true;renderPeopleView()">✕ Clear</button>`:''}
+      <button class="bpri" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="openPersonForm()">+ Add person</button>
+    </div>
   </div>`;
   let listHtml='';
   if(!fl.length){listHtml=`<div class="empty-st"><div class="ei">👥</div><div class="et">No contacts yet</div><div class="es">Add your first contact to start tracking follow-ups</div></div>`;}
