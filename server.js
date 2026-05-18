@@ -593,7 +593,8 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     const token = user.ticktick_token;
     const ttProjects = await ttReq(token,'GET','/project');
     const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[stripEmoji(p.name).toLowerCase(),p.id]));
-    const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,stripEmoji(p.name)]));
+    // Map id → original name with emoji (for display/storage); stripped used only in WHERE matching
+    const ttProjById=Object.fromEntries((ttProjects||[]).map(p=>[p.id,p.name]));
     // Pre-fetch all project data (tasks + columns) once
     const ttProjData={};
     for(const proj of (ttProjects||[])){
@@ -636,7 +637,8 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
       // Prefer ticktick_project_id match; fall back to name
       let localProj=db.prepare('SELECT id FROM projects WHERE user_id=? AND ticktick_project_id=?').get(userId,ttProjId);
       if(!localProj&&ttProjName){
-        localProj=db.prepare('SELECT id FROM projects WHERE user_id=? AND LOWER(name)=LOWER(?)').get(userId,ttProjName);
+        // Match on original emoji name OR stripped — handles previously-stripped imports
+        localProj=db.prepare('SELECT id FROM projects WHERE user_id=? AND (LOWER(name)=LOWER(?) OR LOWER(name)=LOWER(?))').get(userId,ttProjName,stripEmoji(ttProjName));
         if(localProj)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttProjId,localProj.id);
       }
       if(!localProj)continue;
@@ -644,7 +646,7 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
         if(!col.id||!col.name)continue;
         if(col.name.toLowerCase()==='not sectioned')continue;
         let sec=db.prepare('SELECT id,ticktick_section_id FROM sections WHERE user_id=? AND project_id=? AND ticktick_section_id=?').get(userId,localProj.id,col.id);
-        if(!sec)sec=db.prepare('SELECT id,ticktick_section_id FROM sections WHERE user_id=? AND project_id=? AND LOWER(name)=LOWER(?)').get(userId,localProj.id,col.name);
+        if(!sec)sec=db.prepare('SELECT id,ticktick_section_id FROM sections WHERE user_id=? AND project_id=? AND (LOWER(name)=LOWER(?) OR LOWER(name)=LOWER(?))').get(userId,localProj.id,col.name,stripEmoji(col.name));
         if(!sec){
           const sid=uid();
           const cnt=db.prepare('SELECT COUNT(*) as c FROM sections WHERE project_id=?').get(localProj.id).c;
@@ -684,7 +686,7 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
       for(const ttt of pd.tasks){
         if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
         let localProjId=null;
-        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
+        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?) OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname,stripEmoji(pname));if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
         // Section lookup: sections were created upfront in the creation pass above,
         // so this is now a direct ticktick_section_id lookup — no creation needed here.
         const taskColumnId=ttt.columnId||ttt.column_id||ttt.listId||ttt.sectionId||null;
@@ -719,10 +721,11 @@ app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
     const ttProjToLocal={};
     existingProjs.forEach(p=>{ if(p.ticktick_project_id) ttProjToLocal[p.ticktick_project_id]=p.id; });
     for(const proj of (ttProjects||[])){
-      const pname=stripEmoji(proj.name);
-      // Match by ticktick_project_id first, then by stripped name
+      const pname=proj.name;                        // original with emoji — used for storage
+      const pnameStripped=stripEmoji(proj.name);    // stripped — used only for matching
+      // Match by ticktick_project_id first, then by name (try both emoji and stripped)
       let existing=existingProjs.find(p=>p.ticktick_project_id===proj.id);
-      if(!existing)existing=existingProjs.find(p=>p.name.toLowerCase()===pname.toLowerCase());
+      if(!existing)existing=existingProjs.find(p=>stripEmoji(p.name).toLowerCase()===pnameStripped.toLowerCase());
       if(existing&&!ttProjToLocal[proj.id])ttProjToLocal[proj.id]=existing.id;
       if(!existing)toCreateProjs.push({ttId:proj.id,name:pname,color:TT_PALETTE[colorIdx++%TT_PALETTE.length]});
       const localProjId=existing?.id||null;
@@ -733,8 +736,9 @@ app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
         const cols=rawCols.map(normalizeCol).filter(c=>c.id&&c.name&&c.name.toLowerCase()!=='not sectioned');
         const existingSecs=localProjId?db.prepare('SELECT * FROM sections WHERE user_id=? AND project_id=?').all(req.session.userId,localProjId):[];
         for(const col of cols){
-          const cname=stripEmoji(col.name);
-          const existingSec=existingSecs.find(s=>s.ticktick_section_id===col.id||s.name.toLowerCase()===cname.toLowerCase());
+          const cname=col.name;                       // original with emoji — used for storage
+          const cnameStripped=stripEmoji(col.name);   // stripped — used only for matching
+          const existingSec=existingSecs.find(s=>s.ticktick_section_id===col.id||stripEmoji(s.name).toLowerCase()===cnameStripped.toLowerCase());
           if(!existingSec)toCreateSecs.push({ttId:col.id,ttProjId:proj.id,name:cname});
         }
       }catch(e){console.error('import-structure /data failed for',proj.id,proj.name,':',e.message);}
@@ -750,7 +754,7 @@ app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
       // Backfill ticktick_project_id on name-matched projects that don't have it yet
       existingProjs.forEach(p=>{
         if(!p.ticktick_project_id){
-          const ttProj=ttProjects.find(tp=>stripEmoji(tp.name).toLowerCase()===p.name.toLowerCase());
+          const ttProj=ttProjects.find(tp=>stripEmoji(tp.name).toLowerCase()===stripEmoji(p.name).toLowerCase());
           if(ttProj)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttProj.id,p.id);
         }
       });
