@@ -95,8 +95,14 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .ni.vset.on{background:#f5f0e8;color:var(--text)}
 .nc{margin-left:auto;font-size:11px;font-family:monospace;color:var(--t3)}
 .ni.on .nc{color:var(--accent)}
-.pr{display:flex;align-items:center;padding:6px 11px;margin:1px 7px;border-radius:var(--r);cursor:pointer;transition:background .1s;user-select:none}
+.pr{display:flex;align-items:center;padding:6px 11px;margin:1px 7px;border-radius:var(--r);cursor:pointer;transition:background .1s;user-select:none;position:relative}
 .pr:hover{background:var(--bg)}.pr.on{background:var(--al)}
+.pr.proj-dragging{opacity:.4}
+.pdh{display:none;font-size:14px;color:var(--t3);cursor:grab;flex-shrink:0;padding:0 2px;touch-action:none;line-height:1;margin-right:1px}
+.pdh:active{cursor:grabbing}
+.pr:hover .pdh,.pr.on .pdh{display:flex;align-items:center}
+.proj-tree-item.pdrop-before>.pr{box-shadow:0 -2px 0 var(--accent)}
+.proj-tree-item.pdrop-after>.pr{box-shadow:0 2px 0 var(--accent)}
 .ptog{width:17px;height:17px;display:flex;align-items:center;justify-content:center;color:var(--t3);flex-shrink:0}
 .ptog svg{transition:transform .15s}.ptog.open svg{transform:rotate(90deg)}
 .pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-right:4px}
@@ -106,8 +112,14 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .ib{width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;background:none;cursor:pointer;color:var(--t3);border-radius:4px;font-size:12px}
 .ib:hover{background:var(--border);color:var(--text)}
 .schs{padding-left:14px}
-.sch{display:flex;align-items:center;gap:3px;border-radius:var(--r);cursor:pointer;padding:4px 11px;margin:1px 7px;transition:background .1s}
+.sch{display:flex;align-items:center;gap:3px;border-radius:var(--r);cursor:pointer;padding:4px 11px;margin:1px 7px;transition:background .1s;position:relative}
 .sch:hover{background:var(--bg)}.sch.on{background:var(--al)}
+.sch.sch-dragging{opacity:.4}
+.sdh{display:none;font-size:12px;color:var(--t3);cursor:grab;flex-shrink:0;padding:0 2px;touch-action:none;line-height:1}
+.sdh:active{cursor:grabbing}
+.sch:hover .sdh,.sch.on .sdh{display:flex;align-items:center}
+.sch.sdrop-before{box-shadow:0 -2px 0 var(--accent)}
+.sch.sdrop-after{box-shadow:0 2px 0 var(--accent)}
 .scd{width:10px;height:1px;background:var(--bh);flex-shrink:0;margin-right:3px}
 .scn{font-size:12px;font-weight:500;color:var(--t2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sch.on .scn{color:var(--accent)}
@@ -183,7 +195,13 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .sb{margin-bottom:20px}
 .sh{display:flex;align-items:center;gap:7px;padding:5px 0 8px;cursor:pointer;user-select:none;border-bottom:2px solid var(--border)}
 .shv{color:var(--t3);flex-shrink:0;transition:transform .15s}.shv.open{transform:rotate(90deg)}
-.sht{font-size:13px;font-weight:600;color:var(--t2);flex:1}
+.sht{font-size:13px;font-weight:600;color:var(--t2);flex:1;cursor:default}
+/* Inline edit inputs — no layout shift */
+.inline-edit-inp{border:none;background:transparent;outline:none;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;width:100%;padding:0;margin:0;border-bottom:1.5px solid var(--accent);min-width:60px}
+/* Editable hover hint */
+.editable-wrap{position:relative;display:inline-flex;align-items:center;gap:3px;cursor:text}
+.edit-hint{font-size:10px;color:var(--accent);opacity:0;transition:opacity .2s;flex-shrink:0;pointer-events:none}
+.editable-wrap:hover .edit-hint{opacity:1}
 .shc{font-size:11px;font-family:monospace;color:var(--t3);background:var(--bg);padding:1px 7px;border-radius:20px;border:1px solid var(--border)}
 .sha{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--t3);cursor:pointer;padding:3px 7px;border-radius:6px}
 .sha:hover{color:var(--accent);background:var(--al)}
@@ -1277,6 +1295,7 @@ async function renderSettings(){
           </div>
           <span class="set-status ${s.has_ticktick?'connected':'disconnected'}">${s.has_ticktick?'Connected':'Not connected'}</span>
         </div>
+        ${s.has_ticktick?`<div class="set-row"><div class="set-row-info"><div class="set-row-label">Import Structure</div><div class="set-row-sub">Create Irada projects and sections matching your TickTick structure. Only adds missing items — never deletes existing ones.</div><div class="set-acts"><button class="set-btn primary" onclick="importTickTickStructure()">Import from TickTick</button></div></div></div>`:''}
       </div>
 
       ${(s.has_todoist||s.has_ticktick)?`
@@ -1380,15 +1399,17 @@ function renderSidebar(){
     const cnt=tasks.filter(t=>t.project_id===p.id&&!t.is_done&&!t.parent_id).length;
     const secs=(p.sections||[]).map(s=>{
       const sc=tasks.filter(t=>t.section_id===s.id&&!t.is_done&&!t.parent_id).length;
-      return`<div class="sch${view==='sec:'+s.id?' on':''}" data-sid="${s.id}" onclick="setSecV('${p.id}','${s.id}')">
-        <div class="scd"></div><span class="scn">${s.name}</span><span class="scc">${sc||''}</span>
+      return`<div class="sch${view==='sec:'+s.id?' on':''}" data-sid="${s.id}" data-proj-id="${p.id}" onclick="setSecV('${p.id}','${s.id}')">
+        <div class="sdh" onpointerdown="startSecReorder(event,'${s.id}','${p.id}')" title="Drag to reorder">⠿</div>
+        <div class="scd"></div><span class="scn editable-wrap" ondblclick="inlineEditSec('${s.id}',event)" title="Double-click to rename">${s.name}<span class="edit-hint">✎</span></span><span class="scc">${sc||''}</span>
         <button class="scdl" onclick="delSec('${p.id}','${s.id}',event)">×</button>
       </div>`;}).join('');
-    return`<div>
+    return`<div class="proj-tree-item" data-wrap-pid="${p.id}">
       <div class="pr${view===p.id?' on':''}" data-pid="${p.id}" onclick="setProjV('${p.id}')">
+        <div class="pdh" onpointerdown="startProjReorder(event,'${p.id}')" title="Drag to reorder">⠿</div>
         <div class="ptog${p._open!==false?' open':''}" onclick="togProj('${p.id}',event)"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l4 3-4 3"/></svg></div>
         <div class="pdot" style="background:${p.color}"></div>
-        <span class="pname">${p.name}</span><span class="nc" style="margin-right:2px">${cnt||''}</span>
+        <span class="pname editable-wrap" ondblclick="inlineEditProj('${p.id}',event)" title="Double-click to rename">${p.name}<span class="edit-hint">✎</span></span><span class="nc" style="margin-right:2px">${cnt||''}</span>
         <div class="pacts"><button class="ib" onclick="openSM('${p.id}',event)">+</button><button class="ib" onclick="delProj('${p.id}',event)">×</button></div>
       </div>
       ${p._open!==false?`<div class="schs">${secs}<div class="addr" style="padding-left:8px" onclick="openSM('${p.id}',event)">+ Add section</div></div>`:''}
@@ -1710,7 +1731,7 @@ function secBlock(sid,name,tklist,isOpen,pid,sectionId){
   return`<div class="sb">
     <div class="sh" onclick="togSecBlock('${sid}','${pid}',this)">
       <svg class="shv${isOpen?' open':''}" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l4 3-4 3"/></svg>
-      <span class="sht">${name}</span><span class="shc">${tklist.length}</span>
+      <span class="sht editable-wrap" ondblclick="inlineEditSec('${sid}',event)" title="Double-click to rename">${name}<span class="edit-hint">✎</span></span><span class="shc">${tklist.length}</span>
       <div class="sha" onclick="openAdd('${pid}','${sectionId}');event.stopPropagation()">+ Add</div>
     </div>
     <div class="sbody${isOpen?'':' col'}" id="sb_${sid}">${tklist.length?tklist.map(tk=>taskRow(tk,false)).join(''):`<div class="semp">No tasks yet</div>`}</div>
@@ -1889,7 +1910,7 @@ function renderHabits(){
   const area=document.getElementById('tarea');area.style.cssText='padding:0;overflow:hidden;display:flex;flex-direction:column;';
   const dates=wkDates(habitWkOff),t=td(),col=`160px repeat(7,1fr)`;
   const hdrs=`<div class="hghc" style="text-align:left;padding-left:12px">Habit</div>`+dates.map((d,i)=>{const isTd=d===t,dn=new Date(d+'T12:00:00').getDate();return`<div class="hghc${isTd?' tdc':''}">${DLBL[i]}<br><span style="font-size:10px;opacity:.75">${dn}</span></div>`;}).join('');
-  const habRows=habits.length?habits.map(h=>{const st=calcStreak(h);const cells=dates.map(d=>{const isFut=d>t,done=!isFut&&(h.log||{})[d];return`<div class="habcl${d===t?' tdc':''}${isFut?' fut':''}" onclick="togHab('${h.id}','${d}')"><div class="hcdot${done?' done':''}" id="hc-${h.id}-${d}">${done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div></div>`;}).join('');return`<div class="habrow" style="grid-template-columns:${col}"><div class="habnc"><div class="habem">${h.emoji}</div><div class="habnb"><div class="habnm">${h.name}</div><div class="habst${st>=3?' hot':''}" id="hs-${h.id}">${st>0?'🔥 '+st+' day streak':'No streak yet'}</div></div><div class="habrb"><div class="hbt" onclick="startEditHab('${h.id}')">✎</div><div class="hbt del" onclick="delHab('${h.id}')">🗑</div></div></div>${cells}</div>`;}).join(''):`<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;font-style:italic">No habits yet — tap "+ Add habit"</div>`;
+  const habRows=habits.length?habits.map(h=>{const st=calcStreak(h);const cells=dates.map(d=>{const isFut=d>t,done=!isFut&&(h.log||{})[d];return`<div class="habcl${d===t?' tdc':''}${isFut?' fut':''}" onclick="togHab('${h.id}','${d}')"><div class="hcdot${done?' done':''}" id="hc-${h.id}-${d}">${done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div></div>`;}).join('');return`<div class="habrow" style="grid-template-columns:${col}"><div class="habnc"><div class="habem">${h.emoji}</div><div class="habnb"><div class="habnm editable-wrap" ondblclick="inlineEditHabit('${h.id}',event)">${h.name}<span class="edit-hint">✎</span></div><div class="habst${st>=3?' hot':''}" id="hs-${h.id}">${st>0?'🔥 '+st+' day streak':'No streak yet'}</div></div><div class="habrb"><div class="hbt" onclick="startEditHab('${h.id}')">✎</div><div class="hbt del" onclick="delHab('${h.id}')">🗑</div></div></div>${cells}</div>`;}).join(''):`<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;font-style:italic">No habits yet — tap "+ Add habit"</div>`;
   const addF=showHabAdd?`<div class="habaf"><div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px">${editHabId?'Edit':'New'} habit</div><div class="emjpk">${HEMOJIS.map(e=>`<div class="ep${e===selEmoji?' sel':''}" onclick="pickEmoji('${e}',this)">${e}</div>`).join('')}</div><div class="hafr"><input class="hafin" id="haf-nm" placeholder="e.g. Drink 8 glasses of water" onkeydown="if(event.key==='Enter')saveHab()"/><button class="bsm bcnl" onclick="toggleHabAdd()">Cancel</button><button class="bsm bsav" onclick="saveHab()">${editHabId?'Save':'Add'}</button></div></div>`:'';
   area.innerHTML=`<div class="habwrap">${addF}<div class="habsum" id="habsum-el"></div><div class="hwn"><button class="wkbt" onclick="habitWkOff--;renderHabits()">‹</button><span class="hwl">${fmtWkLbl(habitWkOff)}</span><button class="wkbt" onclick="if(habitWkOff<0){habitWkOff++;renderHabits()}" ${habitWkOff>=0?'disabled':''}>›</button></div><div class="habgrid"><div class="habghdr" style="grid-template-columns:${col}">${hdrs}</div>${habRows}</div></div>`;
   renderHabSum();
@@ -2862,6 +2883,181 @@ async function savePplForm(){
     else{const created=await POST('/people',data);people.unshift(created);toast('Contact added');}
     closePplForm();pplLoaded=true;renderPeopleView();
   }catch(e){toast('Failed to save contact');}
+}
+
+// ── INLINE EDITING ───────────────────────────────────────────
+function makeInlineInput(el, currentVal, onSave) {
+  el.style.pointerEvents='none'; // prevent re-trigger during edit
+  const inp=document.createElement('input');
+  inp.className='inline-edit-inp';
+  inp.value=currentVal;
+  inp.style.cssText=`font-size:${getComputedStyle(el).fontSize};font-weight:${getComputedStyle(el).fontWeight};color:${getComputedStyle(el).color};font-family:${getComputedStyle(el).fontFamily};width:${Math.max(80,el.offsetWidth)}px`;
+  const commit=async()=>{
+    const v=inp.value.trim();
+    inp.removeEventListener('blur',commit);
+    // Restore original element
+    if(el.parentNode&&inp.parentNode===el.parentNode)el.parentNode.replaceChild(el,inp);
+    el.style.pointerEvents='';
+    if(v&&v!==currentVal)await onSave(v);
+  };
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Escape'){inp.value=currentVal;commit();}});
+  inp.addEventListener('blur',commit);
+  if(el.parentNode)el.parentNode.replaceChild(inp,el);
+  setTimeout(()=>inp.focus(),10);
+}
+async function inlineEditSec(sid, e){
+  e.stopPropagation();
+  const span=e.currentTarget;
+  const currentName=span.childNodes[0]?.textContent?.trim()||span.textContent.replace('✎','').trim();
+  makeInlineInput(span, currentName, async(newName)=>{
+    // Update in JS state
+    projects.forEach(p=>{const s=(p.sections||[]).find(s=>s.id===sid);if(s)s.name=newName;});
+    renderSidebar();
+    if(view.startsWith('sec:')||projects.some(p=>p.id===view))render();
+    await PATCH('/sections/'+sid,{name:newName});
+    toast('Section renamed');
+  });
+}
+async function inlineEditProj(pid, e){
+  e.stopPropagation();
+  const span=e.currentTarget;
+  const currentName=span.childNodes[0]?.textContent?.trim()||span.textContent.replace('✎','').trim();
+  makeInlineInput(span, currentName, async(newName)=>{
+    const p=projects.find(p=>p.id===pid);if(p)p.name=newName;
+    renderSidebar();
+    await PATCH('/projects/'+pid,{name:newName});
+    toast('Project updated');
+  });
+}
+async function inlineEditHabit(hid, e){
+  e.stopPropagation();
+  const el=e.currentTarget;
+  const currentName=el.childNodes[0]?.textContent?.trim()||el.textContent.replace('✎','').trim();
+  makeInlineInput(el, currentName, async(newName)=>{
+    const h=habits.find(h=>h.id===hid);if(h)h.name=newName;
+    renderHabits();
+    await PATCH('/habits/'+hid,{name:newName});
+    toast('Habit updated');
+  });
+}
+
+// ── PROJECT REORDER DRAG ─────────────────────────────────────
+let pjDrag={clone:null,id:null,offY:0,target:null,targetAfter:false};
+function startProjReorder(e,id){
+  e.stopPropagation();e.preventDefault();
+  const row=e.currentTarget.closest('.pr');if(!row)return;
+  pjDrag.id=id;
+  const rect=row.getBoundingClientRect();
+  pjDrag.offY=e.clientY-rect.top;
+  pjDrag.clone=row.cloneNode(true);
+  pjDrag.clone.style.cssText=`position:fixed;z-index:9999;width:${rect.width}px;opacity:.9;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.2);border:1.5px solid var(--accent);border-radius:var(--r);background:var(--surface);left:${rect.left}px;top:${rect.top}px;display:flex;align-items:center;padding:6px 11px;`;
+  document.body.appendChild(pjDrag.clone);
+  row.classList.add('proj-dragging');
+  document.addEventListener('pointermove',moveProjReorder,{passive:false});
+  document.addEventListener('pointerup',endProjReorder);
+  document.addEventListener('pointercancel',endProjReorder);
+}
+function moveProjReorder(e){
+  if(!pjDrag.clone)return;
+  e.preventDefault();
+  pjDrag.clone.style.top=(e.clientY-pjDrag.offY)+'px';
+  document.querySelectorAll('.proj-tree-item').forEach(w=>w.classList.remove('pdrop-before','pdrop-after'));
+  const wrappers=[...document.querySelectorAll('.proj-tree-item')].filter(w=>w.dataset.wrapPid!==pjDrag.id);
+  let found=false;
+  for(const w of wrappers){
+    const r=w.querySelector('.pr').getBoundingClientRect();
+    if(e.clientY<r.top+r.height/2){w.classList.add('pdrop-before');pjDrag.target=w.dataset.wrapPid;pjDrag.targetAfter=false;found=true;break;}
+  }
+  if(!found&&wrappers.length){wrappers[wrappers.length-1].classList.add('pdrop-after');pjDrag.target=wrappers[wrappers.length-1].dataset.wrapPid;pjDrag.targetAfter=true;}
+}
+async function endProjReorder(e){
+  if(!pjDrag.clone)return;
+  document.removeEventListener('pointermove',moveProjReorder);
+  document.removeEventListener('pointerup',endProjReorder);
+  document.removeEventListener('pointercancel',endProjReorder);
+  pjDrag.clone.remove();pjDrag.clone=null;
+  document.querySelectorAll('.proj-tree-item').forEach(w=>w.classList.remove('pdrop-before','pdrop-after'));
+  document.querySelector('.pr.proj-dragging')?.classList.remove('proj-dragging');
+  const fromId=pjDrag.id,toId=pjDrag.target,after=pjDrag.targetAfter;
+  pjDrag={clone:null,id:null,offY:0,target:null,targetAfter:false};
+  if(!fromId||!toId||fromId===toId)return;
+  const fromIdx=projects.findIndex(p=>p.id===fromId);if(fromIdx<0)return;
+  const proj=projects.splice(fromIdx,1)[0];
+  const toIdx=projects.findIndex(p=>p.id===toId);
+  projects.splice(after?toIdx+1:toIdx,0,proj);
+  projects.forEach((p,i)=>p.sort_order=i);
+  renderSidebar();
+  try{await POST('/projects/reorder',projects.map((p,i)=>({id:p.id,sort_order:i})));}catch(err){}
+}
+
+// ── SECTION REORDER DRAG ─────────────────────────────────────
+let sdDrag={clone:null,id:null,pid:null,offY:0,target:null,targetAfter:false};
+function startSecReorder(e,sid,pid){
+  e.stopPropagation();e.preventDefault();
+  const row=e.currentTarget.closest('.sch');if(!row)return;
+  sdDrag.id=sid;sdDrag.pid=pid;
+  const rect=row.getBoundingClientRect();
+  sdDrag.offY=e.clientY-rect.top;
+  sdDrag.clone=row.cloneNode(true);
+  sdDrag.clone.style.cssText=`position:fixed;z-index:9999;width:${rect.width}px;opacity:.9;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.18);border:1.5px solid var(--accent);border-radius:var(--r);background:var(--surface);left:${rect.left}px;top:${rect.top}px;display:flex;align-items:center;padding:4px 11px;`;
+  document.body.appendChild(sdDrag.clone);
+  row.classList.add('sch-dragging');
+  document.addEventListener('pointermove',moveSecReorder,{passive:false});
+  document.addEventListener('pointerup',endSecReorder);
+  document.addEventListener('pointercancel',endSecReorder);
+}
+function moveSecReorder(e){
+  if(!sdDrag.clone)return;
+  e.preventDefault();
+  sdDrag.clone.style.top=(e.clientY-sdDrag.offY)+'px';
+  document.querySelectorAll('.sch').forEach(s=>s.classList.remove('sdrop-before','sdrop-after'));
+  const srows=[...document.querySelectorAll(`.sch[data-proj-id="${sdDrag.pid}"]`)].filter(s=>s.dataset.sid!==sdDrag.id);
+  let found=false;
+  for(const s of srows){
+    const r=s.getBoundingClientRect();
+    if(e.clientY<r.top+r.height/2){s.classList.add('sdrop-before');sdDrag.target=s.dataset.sid;sdDrag.targetAfter=false;found=true;break;}
+  }
+  if(!found&&srows.length){srows[srows.length-1].classList.add('sdrop-after');sdDrag.target=srows[srows.length-1].dataset.sid;sdDrag.targetAfter=true;}
+}
+async function endSecReorder(e){
+  if(!sdDrag.clone)return;
+  document.removeEventListener('pointermove',moveSecReorder);
+  document.removeEventListener('pointerup',endSecReorder);
+  document.removeEventListener('pointercancel',endSecReorder);
+  sdDrag.clone.remove();sdDrag.clone=null;
+  document.querySelectorAll('.sch').forEach(s=>s.classList.remove('sdrop-before','sdrop-after'));
+  document.querySelector('.sch.sch-dragging')?.classList.remove('sch-dragging');
+  const fromId=sdDrag.id,toId=sdDrag.target,pid=sdDrag.pid,after=sdDrag.targetAfter;
+  sdDrag={clone:null,id:null,pid:null,offY:0,target:null,targetAfter:false};
+  if(!fromId||!toId||fromId===toId)return;
+  const proj=projects.find(p=>p.id===pid);if(!proj)return;
+  const secs=proj.sections||[];
+  const fromIdx=secs.findIndex(s=>s.id===fromId);if(fromIdx<0)return;
+  const sec=secs.splice(fromIdx,1)[0];
+  const toIdx=secs.findIndex(s=>s.id===toId);
+  secs.splice(after?toIdx+1:toIdx,0,sec);
+  secs.forEach((s,i)=>s.sort_order=i);
+  renderSidebar();
+  try{await POST('/sections/reorder',secs.map((s,i)=>({id:s.id,sort_order:i})));}catch(err){}
+}
+
+// ── TICKTICK STRUCTURE IMPORT ─────────────────────────────────
+async function importTickTickStructure(){
+  const btn=event?.target;if(btn){btn.disabled=true;btn.textContent='Checking…';}
+  try{
+    const preview=await POST('/ticktick/import-structure',{apply:false});
+    if(btn){btn.disabled=false;btn.textContent='Import from TickTick';}
+    const np=preview.projects?.length||0,ns=preview.sections?.length||0;
+    if(!np&&!ns){toast('All TickTick projects and sections already exist in Irada');return;}
+    const msg=`Found ${np} new project${np!==1?'s':''}${ns?` and ${ns} section${ns!==1?'s':''}`:''} in TickTick.\nImport into Irada?`;
+    if(!confirm(msg))return;
+    const result=await POST('/ticktick/import-structure',{apply:true});
+    toast(`Imported ${result.projectsCreated} project${result.projectsCreated!==1?'s':''} and ${result.sectionsCreated} section${result.sectionsCreated!==1?'s':''} from TickTick`);
+    await loadAll();
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Import from TickTick';}
+    toast('Import failed: '+(e.message||'Unknown error'));
+  }
 }
 
 loadTheme();

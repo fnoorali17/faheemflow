@@ -138,6 +138,8 @@ db.exec(`
   'ALTER TABLE tasks ADD COLUMN in_matrix INTEGER DEFAULT 1',
   'ALTER TABLE users ADD COLUMN user_project_mappings TEXT DEFAULT \'[]\'',
   'ALTER TABLE tasks ADD COLUMN linked_person_id TEXT',
+  'ALTER TABLE projects ADD COLUMN ticktick_project_id TEXT',
+  'ALTER TABLE sections ADD COLUMN ticktick_section_id TEXT',
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
 // Cleanup: permanently delete tasks soft-deleted more than 30 days ago
@@ -626,12 +628,12 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
       for(const ttt of pd.tasks){
         if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
         let localProjId=null;
-        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND name=?').get(userId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,sort_order) VALUES (?,?,?,?,?)').run(nid,userId,pname,'#6b7280',99);localProjId=nid;}else localProjId=lp.id;}
-        // Map TickTick column → Irada section
+        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
+        // Map TickTick column → Irada section (prefer ticktick_section_id match)
         let localSecId=null;
         if(ttt.columnId&&localProjId){
           const colName=pd.colById[ttt.columnId];
-          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND name=?').get(userId,localProjId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,is_open,sort_order) VALUES (?,?,?,?,?,?)').run(sid,localProjId,userId,colName,1,99);localSecId=sid;}else localSecId=ls.id;}
+          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND (ticktick_section_id=? OR LOWER(name)=LOWER(?))').get(userId,localProjId,ttt.columnId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,localProjId,userId,colName,ttt.columnId,1,99);localSecId=sid;}else{if(!ls.ticktick_section_id)db.prepare('UPDATE sections SET ticktick_section_id=? WHERE id=?').run(ttt.columnId,ls.id);localSecId=ls.id;}}
         }
         const pri=ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
         db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,notes,due_date,priority,project_id,section_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,ttt.content||'',ttt.dueDate?ttt.dueDate.slice(0,10):null,pri,localProjId,localSecId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
@@ -640,6 +642,48 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
     }
     res.json({ok:true,pushed,pulled});
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// TICKTICK IMPORT STRUCTURE
+const TT_PALETTE=['#8b5cf6','#3b82f6','#22c55e','#f97316','#ec4899','#c4922a','#1e5c5c'];
+app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
+  const user = db.prepare('SELECT ticktick_token FROM users WHERE id=?').get(req.session.userId);
+  if (!user?.ticktick_token) return res.status(400).json({ error: 'TickTick not connected' });
+  const token = user.ticktick_token;
+  try {
+    const ttProjects = await ttReq(token,'GET','/project');
+    const existingProjs = db.prepare('SELECT * FROM projects WHERE user_id=?').all(req.session.userId);
+    const existingSecs = db.prepare('SELECT * FROM sections WHERE user_id=?').all(req.session.userId);
+    const toCreateProjs=[],toCreateSecs=[];
+    let colorIdx=existingProjs.length;
+    // Build map: ttId → local proj
+    const ttToLocal={};
+    existingProjs.forEach(p=>{if(p.ticktick_project_id)ttToLocal[p.ticktick_project_id]=p.id;});
+    for(const proj of (ttProjects||[])){
+      const pname=stripEmoji(proj.name);
+      const existing=existingProjs.find(p=>p.ticktick_project_id===proj.id||p.name.toLowerCase()===pname.toLowerCase());
+      if(!existing)toCreateProjs.push({ttId:proj.id,name:pname,color:TT_PALETTE[colorIdx++%TT_PALETTE.length]});
+      const localProjId=existing?.id||null;
+      try{
+        const data=await ttReq(token,'GET',`/project/${proj.id}/data`);
+        for(const col of (data.columns||[])){
+          const cname=stripEmoji(col.name);
+          const existingSec=localProjId?existingSecs.find(s=>s.project_id===localProjId&&(s.ticktick_section_id===col.id||s.name.toLowerCase()===cname.toLowerCase())):null;
+          if(!existingSec)toCreateSecs.push({ttId:col.id,ttProjId:proj.id,name:cname,projName:pname});
+        }
+      }catch(e){}
+    }
+    if(req.body.apply){
+      const allProjs=db.prepare('SELECT * FROM projects WHERE user_id=?').all(req.session.userId);
+      const ttProjToLocal={};
+      allProjs.forEach(p=>{if(p.ticktick_project_id)ttProjToLocal[p.ticktick_project_id]=p.id;});
+      toCreateProjs.forEach(pp=>{const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,req.session.userId,pp.name,pp.color,pp.ttId,allProjs.length+Object.keys(ttProjToLocal).length);ttProjToLocal[pp.ttId]=nid;});
+      const allSecs=db.prepare('SELECT * FROM sections WHERE user_id=?').all(req.session.userId);
+      toCreateSecs.forEach(ss=>{const lpid=ttProjToLocal[ss.ttProjId];if(!lpid)return;const cnt=allSecs.filter(s=>s.project_id===lpid).length;const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,lpid,req.session.userId,ss.name,ss.ttId,1,cnt);});
+      return res.json({ok:true,projectsCreated:toCreateProjs.length,sectionsCreated:toCreateSecs.length});
+    }
+    res.json({ok:true,projects:toCreateProjs,sections:toCreateSecs});
+  }catch(e){res.status(500).json({error:e.message});}
 });
 
 // SYNC ALL
@@ -674,10 +718,41 @@ app.post('/api/sections', requireAuth, (req, res) => {
   db.prepare('INSERT INTO sections (id,project_id,user_id,name,sort_order) VALUES (?,?,?,?,?)').run(id,project_id,req.session.userId,name,db.prepare('SELECT COUNT(*) as c FROM sections WHERE project_id=?').get(project_id).c);
   res.json({ok:true});
 });
-app.patch('/api/sections/:id', requireAuth, (req, res) => { db.prepare('UPDATE sections SET is_open=? WHERE id=? AND user_id=?').run(req.body.is_open?1:0,req.params.id,req.session.userId); res.json({ok:true}); });
+app.patch('/api/sections/:id', requireAuth, (req, res) => {
+  const {is_open, name} = req.body;
+  if (is_open !== undefined) db.prepare('UPDATE sections SET is_open=? WHERE id=? AND user_id=?').run(is_open?1:0,req.params.id,req.session.userId);
+  if (name !== undefined && name.trim()) db.prepare('UPDATE sections SET name=? WHERE id=? AND user_id=?').run(name.trim(),req.params.id,req.session.userId);
+  res.json({ok:true});
+});
 app.delete('/api/sections/:id', requireAuth, (req, res) => {
   db.prepare('UPDATE tasks SET section_id=NULL WHERE section_id=? AND user_id=?').run(req.params.id,req.session.userId);
   db.prepare('DELETE FROM sections WHERE id=? AND user_id=?').run(req.params.id,req.session.userId);
+  res.json({ok:true});
+});
+app.patch('/api/projects/:id', requireAuth, (req, res) => {
+  const {name, color} = req.body;
+  const upd=[]; const vals=[];
+  if (name !== undefined) { upd.push('name=?'); vals.push(name); }
+  if (color !== undefined) { upd.push('color=?'); vals.push(color); }
+  if (upd.length) { vals.push(req.params.id, req.session.userId); db.prepare(`UPDATE projects SET ${upd.join(',')} WHERE id=? AND user_id=?`).run(...vals); }
+  res.json({ok:true});
+});
+app.patch('/api/sections/:id/rename', requireAuth, (req, res) => {
+  const {name} = req.body;
+  if (!name) return res.status(400).json({error:'name required'});
+  db.prepare('UPDATE sections SET name=? WHERE id=? AND user_id=?').run(name, req.params.id, req.session.userId);
+  res.json({ok:true});
+});
+app.post('/api/projects/reorder', requireAuth, (req, res) => {
+  const items = req.body;
+  if (!Array.isArray(items)) return res.status(400).json({error:'Array required'});
+  db.transaction(() => { items.forEach(({id,sort_order}) => db.prepare('UPDATE projects SET sort_order=? WHERE id=? AND user_id=?').run(sort_order,id,req.session.userId)); })();
+  res.json({ok:true});
+});
+app.post('/api/sections/reorder', requireAuth, (req, res) => {
+  const items = req.body;
+  if (!Array.isArray(items)) return res.status(400).json({error:'Array required'});
+  db.transaction(() => { items.forEach(({id,sort_order}) => db.prepare('UPDATE sections SET sort_order=? WHERE id=? AND user_id=?').run(sort_order,id,req.session.userId)); })();
   res.json({ok:true});
 });
 
