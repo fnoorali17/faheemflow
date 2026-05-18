@@ -627,6 +627,38 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
         ttProjData[proj.id]={tasks:[],cols:[],colById:{},colByName:{}};
       }
     }
+    // SECTION CREATION PASS: ensure all TickTick columns exist as Irada sections
+    // before processing tasks so the per-task lookup is a simple ID lookup.
+    let sectionsCreated=0;
+    for(const [ttProjId,pd] of Object.entries(ttProjData)){
+      if(!pd.cols.length)continue;
+      const ttProjName=ttProjById[ttProjId];
+      // Prefer ticktick_project_id match; fall back to name
+      let localProj=db.prepare('SELECT id FROM projects WHERE user_id=? AND ticktick_project_id=?').get(userId,ttProjId);
+      if(!localProj&&ttProjName){
+        localProj=db.prepare('SELECT id FROM projects WHERE user_id=? AND LOWER(name)=LOWER(?)').get(userId,ttProjName);
+        if(localProj)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttProjId,localProj.id);
+      }
+      if(!localProj)continue;
+      for(const col of pd.cols){
+        if(!col.id||!col.name)continue;
+        if(col.name.toLowerCase()==='not sectioned')continue;
+        let sec=db.prepare('SELECT id,ticktick_section_id FROM sections WHERE user_id=? AND project_id=? AND ticktick_section_id=?').get(userId,localProj.id,col.id);
+        if(!sec)sec=db.prepare('SELECT id,ticktick_section_id FROM sections WHERE user_id=? AND project_id=? AND LOWER(name)=LOWER(?)').get(userId,localProj.id,col.name);
+        if(!sec){
+          const sid=uid();
+          const cnt=db.prepare('SELECT COUNT(*) as c FROM sections WHERE project_id=?').get(localProj.id).c;
+          db.prepare('INSERT INTO sections (id,project_id,user_id,name,sort_order,is_open,ticktick_section_id) VALUES (?,?,?,?,?,?,?)').run(sid,localProj.id,userId,col.name,cnt,1,col.id);
+          console.log('TT created section:',col.name,'in project',localProj.id);
+          sectionsCreated++;
+        }else if(!sec.ticktick_section_id){
+          db.prepare('UPDATE sections SET ticktick_section_id=? WHERE id=?').run(col.id,sec.id);
+          console.log('TT backfilled ticktick_section_id for:',col.name);
+        }
+      }
+    }
+    if(sectionsCreated>0)console.log('TT section creation pass: created',sectionsCreated,'sections');
+
     let pushed=0,pulled=0;
     // PUSH: local → TickTick (with section → column mapping)
     const localTasks=db.prepare('SELECT t.*,p.name as proj_name,s.name as sec_name FROM tasks t LEFT JOIN projects p ON t.project_id=p.id LEFT JOIN sections s ON t.section_id=s.id WHERE t.user_id=? AND t.parent_id IS NULL AND t.is_done=0 AND (t.is_deleted=0 OR t.is_deleted IS NULL)').all(userId).map(parseTask);
@@ -653,18 +685,14 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
         if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
         let localProjId=null;
         if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname);if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
-        // Map TickTick column → Irada section (prefer ticktick_section_id match)
-        // Try multiple field names the TickTick API might use for the column/section
+        // Section lookup: sections were created upfront in the creation pass above,
+        // so this is now a direct ticktick_section_id lookup — no creation needed here.
         const taskColumnId=ttt.columnId||ttt.column_id||ttt.listId||ttt.sectionId||null;
         let localSecId=null;
         if(taskColumnId&&localProjId){
-          if(!pd.colById[taskColumnId]){
-            console.warn('TT task', ttt.title, 'has columnId', taskColumnId,
-              'but no matching column in project', proj.id,
-              '— known colIds:', Object.keys(pd.colById).join(', ')||'(none)');
-          }
-          const colName=pd.colById[taskColumnId];
-          if(colName){let ls=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND (ticktick_section_id=? OR LOWER(name)=LOWER(?))').get(userId,localProjId,taskColumnId,colName);if(!ls){const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,localProjId,userId,colName,taskColumnId,1,99);localSecId=sid;}else{if(!ls.ticktick_section_id)db.prepare('UPDATE sections SET ticktick_section_id=? WHERE id=?').run(taskColumnId,ls.id);localSecId=ls.id;}}
+          const sec=db.prepare('SELECT id FROM sections WHERE user_id=? AND project_id=? AND ticktick_section_id=?').get(userId,localProjId,taskColumnId);
+          if(sec)localSecId=sec.id;
+          else console.warn('TT task "'+ttt.title+'" — no section for columnId:',taskColumnId,'in project:',localProjId);
         }
         const pri=ttt.priority>=5?1:ttt.priority>=3?2:ttt.priority>=1?3:4;
         db.prepare('INSERT OR IGNORE INTO tasks (id,user_id,name,notes,due_date,priority,project_id,section_id,tags,is_done,pomos,ticktick_task_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(uid(),userId,ttt.title,ttt.content||'',ttt.dueDate?ttt.dueDate.slice(0,10):null,pri,localProjId,localSecId,JSON.stringify(ttt.tags||[]),0,1,ttt.id);
@@ -677,6 +705,7 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
 
 // TICKTICK IMPORT STRUCTURE
 const TT_PALETTE=['#8b5cf6','#3b82f6','#22c55e','#f97316','#ec4899','#c4922a','#1e5c5c'];
+const normalizeCol=(c)=>({id:c.id||c.columnId||c.listId,name:c.name||c.title||c.columnName||''});
 app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
   const user = db.prepare('SELECT ticktick_token FROM users WHERE id=?').get(req.session.userId);
   if (!user?.ticktick_token) return res.status(400).json({ error: 'TickTick not connected' });
@@ -684,34 +713,57 @@ app.post('/api/ticktick/import-structure', requireAuth, async (req, res) => {
   try {
     const ttProjects = await ttReq(token,'GET','/project');
     const existingProjs = db.prepare('SELECT * FROM projects WHERE user_id=?').all(req.session.userId);
-    const existingSecs = db.prepare('SELECT * FROM sections WHERE user_id=?').all(req.session.userId);
     const toCreateProjs=[],toCreateSecs=[];
     let colorIdx=existingProjs.length;
-    // Build map: ttId → local proj
-    const ttToLocal={};
-    existingProjs.forEach(p=>{if(p.ticktick_project_id)ttToLocal[p.ticktick_project_id]=p.id;});
+    // Build forward-map: ttId → local project id (covers both id-matched and name-matched)
+    const ttProjToLocal={};
+    existingProjs.forEach(p=>{ if(p.ticktick_project_id) ttProjToLocal[p.ticktick_project_id]=p.id; });
     for(const proj of (ttProjects||[])){
       const pname=stripEmoji(proj.name);
-      const existing=existingProjs.find(p=>p.ticktick_project_id===proj.id||p.name.toLowerCase()===pname.toLowerCase());
+      // Match by ticktick_project_id first, then by stripped name
+      let existing=existingProjs.find(p=>p.ticktick_project_id===proj.id);
+      if(!existing)existing=existingProjs.find(p=>p.name.toLowerCase()===pname.toLowerCase());
+      if(existing&&!ttProjToLocal[proj.id])ttProjToLocal[proj.id]=existing.id;
       if(!existing)toCreateProjs.push({ttId:proj.id,name:pname,color:TT_PALETTE[colorIdx++%TT_PALETTE.length]});
       const localProjId=existing?.id||null;
       try{
         const data=await ttReq(token,'GET',`/project/${proj.id}/data`);
-        for(const col of (data.columns||[])){
+        // Same column normalization as sync route — try multiple field names
+        const rawCols=data.columns||data.column||data.lists||data.sections||data.kanbanColumns||[];
+        const cols=rawCols.map(normalizeCol).filter(c=>c.id&&c.name&&c.name.toLowerCase()!=='not sectioned');
+        const existingSecs=localProjId?db.prepare('SELECT * FROM sections WHERE user_id=? AND project_id=?').all(req.session.userId,localProjId):[];
+        for(const col of cols){
           const cname=stripEmoji(col.name);
-          const existingSec=localProjId?existingSecs.find(s=>s.project_id===localProjId&&(s.ticktick_section_id===col.id||s.name.toLowerCase()===cname.toLowerCase())):null;
-          if(!existingSec)toCreateSecs.push({ttId:col.id,ttProjId:proj.id,name:cname,projName:pname});
+          const existingSec=existingSecs.find(s=>s.ticktick_section_id===col.id||s.name.toLowerCase()===cname.toLowerCase());
+          if(!existingSec)toCreateSecs.push({ttId:col.id,ttProjId:proj.id,name:cname});
         }
-      }catch(e){}
+      }catch(e){console.error('import-structure /data failed for',proj.id,proj.name,':',e.message);}
     }
     if(req.body.apply){
-      const allProjs=db.prepare('SELECT * FROM projects WHERE user_id=?').all(req.session.userId);
-      const ttProjToLocal={};
-      allProjs.forEach(p=>{if(p.ticktick_project_id)ttProjToLocal[p.ticktick_project_id]=p.id;});
-      toCreateProjs.forEach(pp=>{const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,req.session.userId,pp.name,pp.color,pp.ttId,allProjs.length+Object.keys(ttProjToLocal).length);ttProjToLocal[pp.ttId]=nid;});
-      const allSecs=db.prepare('SELECT * FROM sections WHERE user_id=?').all(req.session.userId);
-      toCreateSecs.forEach(ss=>{const lpid=ttProjToLocal[ss.ttProjId];if(!lpid)return;const cnt=allSecs.filter(s=>s.project_id===lpid).length;const sid=uid();db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,lpid,req.session.userId,ss.name,ss.ttId,1,cnt);});
-      return res.json({ok:true,projectsCreated:toCreateProjs.length,sectionsCreated:toCreateSecs.length});
+      // Create missing projects first
+      toCreateProjs.forEach(pp=>{
+        const nid=uid();
+        const cnt=db.prepare('SELECT COUNT(*) as c FROM projects WHERE user_id=?').get(req.session.userId).c;
+        db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,req.session.userId,pp.name,pp.color,pp.ttId,cnt);
+        ttProjToLocal[pp.ttId]=nid;
+      });
+      // Backfill ticktick_project_id on name-matched projects that don't have it yet
+      existingProjs.forEach(p=>{
+        if(!p.ticktick_project_id){
+          const ttProj=ttProjects.find(tp=>stripEmoji(tp.name).toLowerCase()===p.name.toLowerCase());
+          if(ttProj)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttProj.id,p.id);
+        }
+      });
+      // Create missing sections
+      let secCount=0;
+      toCreateSecs.forEach(ss=>{
+        const lpid=ttProjToLocal[ss.ttProjId];if(!lpid)return;
+        const cnt=db.prepare('SELECT COUNT(*) as c FROM sections WHERE project_id=?').get(lpid).c;
+        const sid=uid();
+        db.prepare('INSERT INTO sections (id,project_id,user_id,name,ticktick_section_id,is_open,sort_order) VALUES (?,?,?,?,?,?,?)').run(sid,lpid,req.session.userId,ss.name,ss.ttId,1,cnt);
+        secCount++;
+      });
+      return res.json({ok:true,projectsCreated:toCreateProjs.length,sectionsCreated:secCount});
     }
     res.json({ok:true,projects:toCreateProjs,sections:toCreateSecs});
   }catch(e){res.status(500).json({error:e.message});}
