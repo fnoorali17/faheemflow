@@ -806,6 +806,34 @@ html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
   .ppl-row-acts{opacity:1}
   .ppl-grid{grid-template-columns:1fr}
 }
+
+/* ── LANDSCAPE PHONE ─────────────────────────────────────────── */
+@media(orientation:landscape) and (max-height:500px){
+  /* Sidebar: overlay mode (slides in over content, hidden by default) */
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.12);max-width:220px;width:220px;z-index:300}
+  .sidebar.open{transform:translateX(0)}
+  /* Always show hamburger in landscape */
+  .mbtn{display:flex;width:44px;height:44px;border-radius:8px;font-size:0;flex-shrink:0}
+  .mbtn:active{background:rgba(0,0,0,.06)}
+  .mbtn svg{width:22px;height:18px;flex-shrink:0}
+  /* Topbar compact */
+  .topbar{padding:6px 12px}
+  .logo-tagline{display:none}
+  .psub{display:none}
+  /* Nav items tighter */
+  .ni{padding:5px 11px}
+  /* Section headers tighter */
+  .sh{padding:4px 0 6px}
+  /* Task items tighter */
+  .ti{padding:8px 10px}
+  /* FAB repositioned */
+  .fab{bottom:12px;right:12px}
+  /* Pomodoro bar compact */
+  .pobar{padding:6px 12px}
+  /* Calendar all-day row capped */
+  .cal-week-allday-row{max-height:40px;overflow:hidden}
+  .cal-week-alldaycell{overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -1076,6 +1104,16 @@ async function setTheme(theme){
   await PATCH('/settings',{theme});
   if(view==='settings')renderSettings();
 }
+function applyFontSize(size){
+  const sizes={small:'14px',default:'15px',large:'19px',xlarge:'22px'};
+  document.documentElement.style.fontSize=sizes[size]||'15px';
+  localStorage.setItem('irada_font_size',size);
+}
+async function setFontSize(size){
+  applyFontSize(size);
+  await PATCH('/settings',{font_size:size});
+  if(view==='settings')renderSettings();
+}
 
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const td=()=>{const d=new Date();return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
@@ -1165,6 +1203,7 @@ async function checkAuth(){
     if(r.ok){
       const u=await r.json();currentUser=u;
       applyTheme(u.theme||localStorage.getItem('irada-theme')||'light');
+      applyFontSize(u.font_size||localStorage.getItem('irada_font_size')||'default');
       document.getElementById('user-name').textContent=u.name;
       document.getElementById('login-page').style.display='none';
       document.getElementById('app-page').style.display='flex';
@@ -1215,7 +1254,7 @@ async function renderSettings(){
     area.innerHTML=`<div class="settings-wrap">
 
       <div class="set-section">
-        <div class="set-hdr"><div class="set-hdr-title">Appearance</div><div class="set-hdr-sub">Choose your display mode</div></div>
+        <div class="set-hdr"><div class="set-hdr-title">Appearance</div><div class="set-hdr-sub">Display mode and text size</div></div>
         <div class="set-row" style="align-items:center">
           <div class="set-row-info">
             <div class="set-row-label">Theme</div>
@@ -1225,6 +1264,17 @@ async function renderSettings(){
             <button class="set-btn${s.theme==='light'?' primary':''}" onclick="setTheme('light')" style="display:flex;align-items:center;gap:5px">☀ Light</button>
             <button class="set-btn${s.theme!=='light'?' primary':''}" onclick="setTheme('dark')" style="display:flex;align-items:center;gap:5px">◑ Dark</button>
           </div>
+        </div>
+        <div class="set-row" style="flex-direction:column;align-items:stretch">
+          <div class="set-row-label" style="margin-bottom:6px">Text size</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${[['small','A','14px'],['default','A','15px'],['large','A','19px'],['xlarge','A','22px']].map(([k,lbl,sz])=>`
+            <button onclick="setFontSize('${k}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-radius:var(--r);border:2px solid ${(s.font_size||'default')===k?'var(--accent)':'var(--border)'};background:${(s.font_size||'default')===k?'var(--al)':'var(--bg)'};cursor:pointer;min-width:64px">
+              <span style="font-size:${sz};font-family:var(--fd);color:${(s.font_size||'default')===k?'var(--accent)':'var(--text)'};line-height:1;font-weight:400">${lbl}</span>
+              <span style="font-size:10px;color:var(--t3);font-family:var(--font)">${k==='default'?'Default':k.charAt(0).toUpperCase()+k.slice(1)}</span>
+            </button>`).join('')}
+          </div>
+          <div class="set-row-sub" style="margin-top:6px">Changes apply across the entire app</div>
         </div>
       </div>
 
@@ -1310,6 +1360,7 @@ async function renderSettings(){
           <span class="set-status ${s.has_ticktick?'connected':'disconnected'}">${s.has_ticktick?'Connected':'Not connected'}</span>
         </div>
         ${s.has_ticktick?`<div class="set-row"><div class="set-row-info"><div class="set-row-label">Import Structure</div><div class="set-row-sub">Create Irada projects and sections matching your TickTick structure. Only adds missing items — never deletes existing ones.</div><div class="set-acts"><button class="set-btn primary" onclick="importTickTickStructure()">Import from TickTick</button></div></div></div>`:''}
+        ${s.has_ticktick?`<div class="set-row"><div class="set-row-info"><div class="set-row-label">Inbox destination</div><div class="set-row-sub">Where should TickTick Inbox tasks sync to? Tasks in your TickTick Inbox with no project will be placed here in Irada.</div><div style="display:flex;gap:8px;align-items:center;margin-top:8px"><select class="set-input" id="set-tt-inbox" style="margin:0;flex:1"><option value="">No project (unassigned)</option>${(s.projects||[]).map(p=>`<option value="${p.id}"${s.ticktick_inbox_project_id===p.id?' selected':''}>${p.name.replace(/</g,'&lt;')}</option>`).join('')}</select><button class="set-btn primary" onclick="saveTickTickInbox()">Save</button></div></div></div>`:''}
       </div>
 
       ${(s.has_todoist||s.has_ticktick)?`
@@ -1358,6 +1409,10 @@ async function saveTickTick(){
   const token=document.getElementById('set-tt-token')?.value.trim();
   if(!token){toast('Enter your TickTick access token');return;}
   await PATCH('/settings',{ticktick_token:token});toast('TickTick connected!');renderSettings();
+}
+async function saveTickTickInbox(){
+  const sel=document.getElementById('set-tt-inbox');if(!sel)return;
+  await PATCH('/settings',{ticktick_inbox_project_id:sel.value||null});toast('Inbox destination saved');
 }
 async function disconnectService(svc){
   if(!confirm(`Disconnect ${svc}? You can reconnect at any time.`))return;
@@ -3103,6 +3158,7 @@ async function importTickTickStructure(){
 }
 
 loadTheme();
+const _lsFs=localStorage.getItem('irada_font_size');if(_lsFs)applyFontSize(_lsFs);
 checkAuth();
 </script>
 </body>

@@ -140,6 +140,8 @@ db.exec(`
   'ALTER TABLE tasks ADD COLUMN linked_person_id TEXT',
   'ALTER TABLE projects ADD COLUMN ticktick_project_id TEXT',
   'ALTER TABLE sections ADD COLUMN ticktick_section_id TEXT',
+  'ALTER TABLE users ADD COLUMN ticktick_inbox_project_id TEXT',
+  "ALTER TABLE users ADD COLUMN font_size TEXT DEFAULT 'default'",
 ].forEach(sql => { try { db.exec(sql); } catch(e) {} });
 
 // Cleanup: permanently delete tasks soft-deleted more than 30 days ago
@@ -247,6 +249,7 @@ app.get('/api/auth/me', (req, res) => {
     has_ticktick: !!user.ticktick_token,
     selected_calendars: JSON.parse(user.selected_calendars || '[]'),
     theme: user.theme || 'light',
+    font_size: user.font_size || 'default',
     needs_rollover,
     incomplete_today_tasks,
   });
@@ -360,7 +363,8 @@ function seedUser(id) {
 
 // SETTINGS
 app.get('/api/settings', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars,theme,user_project_mappings FROM users WHERE id=?').get(req.session.userId);
+  const user = db.prepare('SELECT id,name,email,gcal_connected,todoist_token,ticktick_token,selected_calendars,theme,user_project_mappings,ticktick_inbox_project_id,font_size FROM users WHERE id=?').get(req.session.userId);
+  const projects = db.prepare('SELECT id,name FROM projects WHERE user_id=? ORDER BY sort_order,name').all(req.session.userId);
   res.json({
     ...user,
     gcal_connected: !!user.gcal_connected,
@@ -368,11 +372,14 @@ app.get('/api/settings', requireAuth, (req, res) => {
     has_ticktick: !!user.ticktick_token,
     selected_calendars: JSON.parse(user.selected_calendars || '[]'),
     theme: user.theme || 'light',
+    font_size: user.font_size || 'default',
     project_mappings: JSON.parse(user.user_project_mappings || '[]'),
+    ticktick_inbox_project_id: user.ticktick_inbox_project_id || null,
+    projects,
   });
 });
 app.patch('/api/settings', requireAuth, async (req, res) => {
-  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars, theme, project_mappings } = req.body;
+  const { todoist_token, ticktick_token, name, current_password, new_password, selected_calendars, theme, project_mappings, ticktick_inbox_project_id, font_size } = req.body;
   const updates=[]; const vals=[];
   if (name !== undefined) { updates.push('name=?'); vals.push(name); }
   if (todoist_token !== undefined) { updates.push('todoist_token=?'); vals.push(todoist_token || null); }
@@ -380,6 +387,8 @@ app.patch('/api/settings', requireAuth, async (req, res) => {
   if (selected_calendars !== undefined) { updates.push('selected_calendars=?'); vals.push(JSON.stringify(selected_calendars)); }
   if (theme !== undefined) { updates.push('theme=?'); vals.push(theme === 'dark' ? 'dark' : 'light'); }
   if (project_mappings !== undefined) { updates.push('user_project_mappings=?'); vals.push(JSON.stringify(Array.isArray(project_mappings)?project_mappings:[])); }
+  if (ticktick_inbox_project_id !== undefined) { updates.push('ticktick_inbox_project_id=?'); vals.push(ticktick_inbox_project_id || null); }
+  if (font_size !== undefined) { updates.push('font_size=?'); vals.push(['small','default','large','xlarge'].includes(font_size)?font_size:'default'); }
   if (new_password && current_password) {
     const user = db.prepare('SELECT password_hash FROM users WHERE id=?').get(req.session.userId);
     if (user.password_hash) {
@@ -588,9 +597,10 @@ app.get('/api/ticktick/status', requireAuth, (req, res) => {
 app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
   try {
     const userId = req.session.userId;
-    const user = db.prepare('SELECT ticktick_token FROM users WHERE id=?').get(userId);
+    const user = db.prepare('SELECT ticktick_token,ticktick_inbox_project_id FROM users WHERE id=?').get(userId);
     if (!user?.ticktick_token) return res.status(400).json({ error: 'TickTick not connected. Add your access token in Settings.' });
     const token = user.ticktick_token;
+    const inboxProjId = user.ticktick_inbox_project_id || null;
     const ttProjects = await ttReq(token,'GET','/project');
     const ttProjByName=Object.fromEntries((ttProjects||[]).map(p=>[stripEmoji(p.name).toLowerCase(),p.id]));
     // Map id → original name with emoji (for display/storage); stripped used only in WHERE matching
@@ -686,7 +696,11 @@ app.post('/api/ticktick/sync', requireAuth, async (req, res) => {
       for(const ttt of pd.tasks){
         if(existingTtIds.has(ttt.id)||ttt.status===2)continue;
         let localProjId=null;
-        if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?) OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname,stripEmoji(pname));if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
+        if(!ttt.projectId){
+          // Inbox task — route to user's configured inbox destination
+          localProjId=inboxProjId;
+          console.log('TT inbox task:',ttt.title,'→ project:',inboxProjId||'unassigned');
+        } else if(ttt.projectId&&ttProjById[ttt.projectId]){const pname=ttProjById[ttt.projectId];let lp=db.prepare('SELECT id FROM projects WHERE user_id=? AND (ticktick_project_id=? OR LOWER(name)=LOWER(?) OR LOWER(name)=LOWER(?))').get(userId,ttt.projectId,pname,stripEmoji(pname));if(!lp){const nid=uid();db.prepare('INSERT INTO projects (id,user_id,name,color,ticktick_project_id,sort_order) VALUES (?,?,?,?,?,?)').run(nid,userId,pname,'#6b7280',ttt.projectId,99);localProjId=nid;}else{if(!lp.ticktick_project_id)db.prepare('UPDATE projects SET ticktick_project_id=? WHERE id=?').run(ttt.projectId,lp.id);localProjId=lp.id;}}
         // Section lookup: sections were created upfront in the creation pass above,
         // so this is now a direct ticktick_section_id lookup — no creation needed here.
         const taskColumnId=ttt.columnId||ttt.column_id||ttt.listId||ttt.sectionId||null;
