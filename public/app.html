@@ -204,7 +204,7 @@ html.dark .taw{box-shadow:0 2px 10px rgba(196,146,42,.08)}
 .inline-edit-inp{border:none;background:transparent;outline:none;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;width:100%;padding:0;margin:0;border-bottom:1.5px solid var(--accent);min-width:60px}
 /* Editable hover hint */
 .editable-wrap{position:relative;display:inline-flex;align-items:center;gap:3px;cursor:text}
-.edit-hint{font-size:10px;color:var(--accent);opacity:0;transition:opacity .2s;flex-shrink:0;pointer-events:none}
+.edit-hint{font-size:10px;color:var(--accent);opacity:0;transition:opacity .2s;flex-shrink:0;cursor:pointer;padding:0 2px}
 .editable-wrap:hover .edit-hint{opacity:1}
 .shc{font-size:11px;font-family:monospace;color:var(--t3);background:var(--bg);padding:1px 7px;border-radius:20px;border:1px solid var(--border)}
 .sha{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--t3);cursor:pointer;padding:3px 7px;border-radius:6px}
@@ -1492,7 +1492,7 @@ function renderSidebar(){
       const sc=tasks.filter(t=>t.section_id===s.id&&!t.is_done&&!t.parent_id).length;
       return`<div class="sch${view==='sec:'+s.id?' on':''}" data-sid="${s.id}" data-proj-id="${p.id}" onclick="setSecV('${p.id}','${s.id}')">
         <div class="sdh" onpointerdown="startSecReorder(event,'${s.id}','${p.id}')" title="Drag to reorder">⠿</div>
-        <div class="scd"></div><span class="scn editable-wrap" ondblclick="inlineEditSec('${s.id}',event)" title="Double-click to rename">${s.name}<span class="edit-hint">✎</span></span><span class="scc">${sc||''}</span>
+        <div class="scd"></div><span class="scn editable-wrap" ondblclick="inlineEditSec('${s.id}',event)" title="Double-click to rename">${s.name}<span class="edit-hint" onclick="inlineEditSec('${s.id}',event)">✎</span></span><span class="scc">${sc||''}</span>
         <button class="scdl" onclick="delSec('${p.id}','${s.id}',event)">×</button>
       </div>`;}).join('');
     return`<div class="proj-tree-item" data-wrap-pid="${p.id}">
@@ -1500,7 +1500,7 @@ function renderSidebar(){
         <div class="pdh" onpointerdown="startProjReorder(event,'${p.id}')" title="Drag to reorder">⠿</div>
         <div class="ptog${p._open!==false?' open':''}" onclick="togProj('${p.id}',event)"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l4 3-4 3"/></svg></div>
         <div class="pdot" style="background:${p.color}"></div>
-        <span class="pname editable-wrap" ondblclick="inlineEditProj('${p.id}',event)" title="Double-click to rename">${p.name}<span class="edit-hint">✎</span></span><span class="nc" style="margin-right:2px">${cnt||''}</span>
+        <span class="pname editable-wrap" ondblclick="inlineEditProj('${p.id}',event)" title="Double-click to rename">${p.name}<span class="edit-hint" onclick="inlineEditProj('${p.id}',event)">✎</span></span><span class="nc" style="margin-right:2px">${cnt||''}</span>
         <div class="pacts"><button class="ib" onclick="openSM('${p.id}',event)">+</button><button class="ib" onclick="delProj('${p.id}',event)">×</button></div>
       </div>
       ${p._open!==false?`<div class="schs">${secs}<div class="addr" style="padding-left:8px" onclick="openSM('${p.id}',event)">+ Add section</div></div>`:''}
@@ -1824,7 +1824,7 @@ function secBlock(sid,name,tklist,isOpen,pid,sectionId){
   return`<div class="sb">
     <div class="sh" onclick="togSecBlock('${sid}','${pid}',this)">
       <svg class="shv${isOpen?' open':''}" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l4 3-4 3"/></svg>
-      <span class="sht editable-wrap" ondblclick="inlineEditSec('${sid}',event)" title="Double-click to rename">${name}<span class="edit-hint">✎</span></span><span class="shc">${tklist.length}</span>
+      <span class="sht editable-wrap" ondblclick="inlineEditSec('${sid}',event)" title="Double-click to rename">${name}<span class="edit-hint" onclick="inlineEditSec('${sid}',event)">✎</span></span><span class="shc">${tklist.length}</span>
       <div class="sha" onclick="openAdd('${pid}','${sectionId}');event.stopPropagation()">+ Add</div>
     </div>
     <div class="sbody${isOpen?'':' col'}" id="sb_${sid}">${tklist.length?tklist.map(tk=>taskRow(tk,false)).join(''):`<div class="semp">No tasks yet</div>`}</div>
@@ -2003,7 +2003,7 @@ function renderHabits(){
   const area=document.getElementById('tarea');area.style.cssText='padding:0;overflow:hidden;display:flex;flex-direction:column;';
   const dates=wkDates(habitWkOff),t=td(),col=`160px repeat(7,1fr)`;
   const hdrs=`<div class="hghc" style="text-align:left;padding-left:12px">Habit</div>`+dates.map((d,i)=>{const isTd=d===t,dn=new Date(d+'T12:00:00').getDate();return`<div class="hghc${isTd?' tdc':''}">${DLBL[i]}<br><span style="font-size:10px;opacity:.75">${dn}</span></div>`;}).join('');
-  const habRows=habits.length?habits.map(h=>{const st=calcStreak(h);const cells=dates.map(d=>{const isFut=d>t,done=!isFut&&(h.log||{})[d];return`<div class="habcl${d===t?' tdc':''}${isFut?' fut':''}" onclick="togHab('${h.id}','${d}')"><div class="hcdot${done?' done':''}" id="hc-${h.id}-${d}">${done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div></div>`;}).join('');return`<div class="habrow" style="grid-template-columns:${col}"><div class="habnc"><div class="habem">${h.emoji}</div><div class="habnb"><div class="habnm editable-wrap" ondblclick="inlineEditHabit('${h.id}',event)">${h.name}<span class="edit-hint">✎</span></div><div class="habst${st>=3?' hot':''}" id="hs-${h.id}">${st>0?'🔥 '+st+' day streak':'No streak yet'}</div></div><div class="habrb"><div class="hbt" onclick="startEditHab('${h.id}')">✎</div><div class="hbt del" onclick="delHab('${h.id}')">🗑</div></div></div>${cells}</div>`;}).join(''):`<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;font-style:italic">No habits yet — tap "+ Add habit"</div>`;
+  const habRows=habits.length?habits.map(h=>{const st=calcStreak(h);const cells=dates.map(d=>{const isFut=d>t,done=!isFut&&(h.log||{})[d];return`<div class="habcl${d===t?' tdc':''}${isFut?' fut':''}" onclick="togHab('${h.id}','${d}')"><div class="hcdot${done?' done':''}" id="hc-${h.id}-${d}">${done?`<svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2.5"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`:''}</div></div>`;}).join('');return`<div class="habrow" style="grid-template-columns:${col}"><div class="habnc"><div class="habem">${h.emoji}</div><div class="habnb"><div class="habnm editable-wrap" ondblclick="inlineEditHabit('${h.id}',event)">${h.name}<span class="edit-hint" onclick="inlineEditHabit('${h.id}',event)">✎</span></div><div class="habst${st>=3?' hot':''}" id="hs-${h.id}">${st>0?'🔥 '+st+' day streak':'No streak yet'}</div></div><div class="habrb"><div class="hbt" onclick="startEditHab('${h.id}')">✎</div><div class="hbt del" onclick="delHab('${h.id}')">🗑</div></div></div>${cells}</div>`;}).join(''):`<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px;font-style:italic">No habits yet — tap "+ Add habit"</div>`;
   const addF=showHabAdd?`<div class="habaf"><div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px">${editHabId?'Edit':'New'} habit</div><div class="emjpk">${HEMOJIS.map(e=>`<div class="ep${e===selEmoji?' sel':''}" onclick="pickEmoji('${e}',this)">${e}</div>`).join('')}</div><div class="hafr"><input class="hafin" id="haf-nm" placeholder="e.g. Drink 8 glasses of water" onkeydown="if(event.key==='Enter')saveHab()"/><button class="bsm bcnl" onclick="toggleHabAdd()">Cancel</button><button class="bsm bsav" onclick="saveHab()">${editHabId?'Save':'Add'}</button></div></div>`:'';
   area.innerHTML=`<div class="habwrap">${addF}<div class="habsum" id="habsum-el"></div><div class="hwn"><button class="wkbt" onclick="habitWkOff--;renderHabits()">‹</button><span class="hwl">${fmtWkLbl(habitWkOff)}</span><button class="wkbt" onclick="if(habitWkOff<0){habitWkOff++;renderHabits()}" ${habitWkOff>=0?'disabled':''}>›</button></div><div class="habgrid"><div class="habghdr" style="grid-template-columns:${col}">${hdrs}</div>${habRows}</div></div>`;
   renderHabSum();
@@ -2694,12 +2694,13 @@ async function renderJournalView(){
       <div class="journal-editor" id="journal-editor">
         <div class="journal-date-hdr">${dateHdr}</div>
         <div class="journal-mood-row">${moodRow}</div>
-        <input class="journal-title-inp" id="j-title" placeholder="Entry title…" value="${(selEntry?.title||'').replace(/"/g,'&quot;')}" oninput="journalMarkUnsaved()"/>
+        <input class="journal-title-inp" id="j-title" placeholder="Entry title…" value="${(selEntry?.title||'').replace(/"/g,'&quot;')}" oninput="journalMarkUnsaved()" onblur="journalSaveNow()"/>
         <div class="journal-divider"></div>
         <textarea class="journal-body-ta" id="j-body" placeholder="${placeholder}" oninput="journalMarkUnsaved()" onblur="journalSaveNow()">${bodyVal}</textarea>
         <div class="journal-footer">
           <span class="journal-save-status" id="j-save-status">${statusTxt}</span>
           <span class="journal-wordcount" id="j-wordcount">${selEntry?.word_count||0} words</span>
+          <button class="journal-new-btn" style="padding:5px 14px;font-size:11px" onclick="journalSaveNow()">Save</button>
         </div>
       </div>
     </div>
@@ -2716,7 +2717,7 @@ function journalMarkUnsaved(){
   journalSaveStatus='unsaved';
   const el=document.getElementById('j-save-status');if(el)el.textContent='Unsaved changes';
   if(journalAutoSaveTimer)clearTimeout(journalAutoSaveTimer);
-  journalAutoSaveTimer=setTimeout(journalSaveNow,30000);
+  journalAutoSaveTimer=setTimeout(journalSaveNow,3000);
 }
 async function journalSaveNow(){
   if(journalAutoSaveTimer)clearTimeout(journalAutoSaveTimer);
@@ -3032,7 +3033,8 @@ function makeInlineInput(el, currentVal, onSave) {
 }
 async function inlineEditSec(sid, e){
   e.stopPropagation();
-  const span=e.currentTarget;
+  // If triggered from the ✎ icon, walk up to the editable-wrap
+  const span=e.currentTarget.closest('.editable-wrap')||e.currentTarget;
   const currentName=span.childNodes[0]?.textContent?.trim()||span.textContent.replace('✎','').trim();
   makeInlineInput(span, currentName, async(newName)=>{
     // Update in JS state
@@ -3045,7 +3047,7 @@ async function inlineEditSec(sid, e){
 }
 async function inlineEditProj(pid, e){
   e.stopPropagation();
-  const span=e.currentTarget;
+  const span=e.currentTarget.closest('.editable-wrap')||e.currentTarget;
   const currentName=span.childNodes[0]?.textContent?.trim()||span.textContent.replace('✎','').trim();
   makeInlineInput(span, currentName, async(newName)=>{
     const p=projects.find(p=>p.id===pid);if(p)p.name=newName;
@@ -3056,7 +3058,7 @@ async function inlineEditProj(pid, e){
 }
 async function inlineEditHabit(hid, e){
   e.stopPropagation();
-  const el=e.currentTarget;
+  const el=e.currentTarget.closest('.editable-wrap')||e.currentTarget;
   const currentName=el.childNodes[0]?.textContent?.trim()||el.textContent.replace('✎','').trim();
   makeInlineInput(el, currentName, async(newName)=>{
     const h=habits.find(h=>h.id===hid);if(h)h.name=newName;
