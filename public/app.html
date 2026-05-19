@@ -807,32 +807,38 @@ html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
   .ppl-grid{grid-template-columns:1fr}
 }
 
-/* ── LANDSCAPE PHONE ─────────────────────────────────────────── */
+/* ── LANDSCAPE PHONE (< 500px tall) ─────────────────────────── */
 @media(orientation:landscape) and (max-height:500px){
-  /* Sidebar: overlay mode (slides in over content, hidden by default) */
   .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.12);max-width:220px;width:220px;z-index:300}
   .sidebar.open{transform:translateX(0)}
-  /* Always show hamburger in landscape */
-  .mbtn{display:flex;width:44px;height:44px;border-radius:8px;font-size:0;flex-shrink:0}
+  .mbtn{display:flex!important;width:44px;height:44px;border-radius:8px;font-size:0;flex-shrink:0}
   .mbtn:active{background:rgba(0,0,0,.06)}
   .mbtn svg{width:22px;height:18px;flex-shrink:0}
-  /* Topbar compact */
   .topbar{padding:6px 12px}
   .logo-tagline{display:none}
   .psub{display:none}
-  /* Nav items tighter */
   .ni{padding:5px 11px}
-  /* Section headers tighter */
   .sh{padding:4px 0 6px}
-  /* Task items tighter */
   .ti{padding:8px 10px}
-  /* FAB repositioned */
   .fab{bottom:12px;right:12px}
-  /* Pomodoro bar compact */
   .pobar{padding:6px 12px}
-  /* Calendar all-day row capped */
   .cal-week-allday-row{max-height:40px;overflow:hidden}
   .cal-week-alldaycell{overflow:hidden}
+}
+/* ── LANDSCAPE TABLET / IPAD (501px–1200px tall) ─────────────── */
+@media(orientation:landscape) and (min-height:501px) and (max-width:1200px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.12);z-index:300}
+  .sidebar.open{transform:translateX(0)}
+  .mbtn{display:flex!important;width:44px;height:44px;border-radius:8px;font-size:0;flex-shrink:0}
+  .mbtn svg{width:22px;height:18px;flex-shrink:0}
+  .topbar{padding:10px 16px 8px}
+  .cal-week-allday-row{max-height:44px;overflow:hidden}
+  .cal-week-alldaycell{overflow:hidden}
+}
+/* ── PORTRAIT TABLET / IPAD — always show sidebar ─────────────── */
+@media(orientation:portrait) and (min-width:768px){
+  .sidebar{transform:none!important;position:relative}
+  .mbtn{display:none!important}
 }
 </style>
 </head>
@@ -1060,6 +1066,8 @@ html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
 </div>
 
 <script>
+// Apply font size from localStorage immediately to prevent flash
+(function(){const fs=localStorage.getItem('irada_font_size');if(fs){const px={small:'13px',default:'15px',large:'19px',xlarge:'22px'}[fs]||'15px';document.documentElement.style.fontSize=px;document.body&&(document.body.style.fontSize=px);}})();
 const PCOLS=['#ef4444','#f97316','#b45309','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
 const STAGS=['urgent','meeting','review','followup','research','personal','idea','waiting'];
 const PC=['#ef4444','#f97316','#3b82f6','#9ca3af'];
@@ -1105,14 +1113,19 @@ async function setTheme(theme){
   if(view==='settings')renderSettings();
 }
 function applyFontSize(size){
-  const sizes={small:'14px',default:'15px',large:'19px',xlarge:'22px'};
-  document.documentElement.style.fontSize=sizes[size]||'15px';
+  const sizes={small:'13px',default:'15px',large:'19px',xlarge:'22px'};
+  const px=sizes[size]||'15px';
+  document.documentElement.style.fontSize=px;
+  document.body.style.fontSize=px;
   localStorage.setItem('irada_font_size',size);
+  document.querySelectorAll('.font-size-btn').forEach(btn=>{
+    btn.style.borderColor=btn.dataset.size===size?'var(--accent)':'var(--border)';
+    btn.style.background=btn.dataset.size===size?'var(--al)':'var(--bg)';
+  });
 }
-async function setFontSize(size){
-  applyFontSize(size);
+async function saveFontSize(size){
   await PATCH('/settings',{font_size:size});
-  if(view==='settings')renderSettings();
+  toast('Text size updated');
 }
 
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -1157,6 +1170,7 @@ async function doLogin(){
     const d=await r.json();
     if(!r.ok){err.textContent=d.error||'Login failed';return;}
     currentUser=d;document.getElementById('user-name').textContent=d.name;
+    applyFontSize(d.font_size||localStorage.getItem('irada_font_size')||'default');
     document.getElementById('login-page').style.display='none';document.getElementById('app-page').style.display='flex';
     await loadAll();
   }catch(e){err.textContent='Connection error';}
@@ -1268,10 +1282,10 @@ async function renderSettings(){
         <div class="set-row" style="flex-direction:column;align-items:stretch">
           <div class="set-row-label" style="margin-bottom:6px">Text size</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${[['small','A','14px'],['default','A','15px'],['large','A','19px'],['xlarge','A','22px']].map(([k,lbl,sz])=>`
-            <button onclick="setFontSize('${k}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-radius:var(--r);border:2px solid ${(s.font_size||'default')===k?'var(--accent)':'var(--border)'};background:${(s.font_size||'default')===k?'var(--al)':'var(--bg)'};cursor:pointer;min-width:64px">
+            ${[['small','A','13px','Small'],['default','A','15px','Default'],['large','A','19px','Large'],['xlarge','A','22px','X-Large']].map(([k,lbl,sz,label])=>`
+            <button class="font-size-btn" data-size="${k}" onclick="applyFontSize('${k}');saveFontSize('${k}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-radius:var(--r);border:2px solid ${(s.font_size||'default')===k?'var(--accent)':'var(--border)'};background:${(s.font_size||'default')===k?'var(--al)':'var(--bg)'};cursor:pointer;min-width:64px">
               <span style="font-size:${sz};font-family:var(--fd);color:${(s.font_size||'default')===k?'var(--accent)':'var(--text)'};line-height:1;font-weight:400">${lbl}</span>
-              <span style="font-size:10px;color:var(--t3);font-family:var(--font)">${k==='default'?'Default':k.charAt(0).toUpperCase()+k.slice(1)}</span>
+              <span style="font-size:10px;color:var(--t3);font-family:var(--font)">${label}</span>
             </button>`).join('')}
           </div>
           <div class="set-row-sub" style="margin-top:6px">Changes apply across the entire app</div>
@@ -3158,7 +3172,6 @@ async function importTickTickStructure(){
 }
 
 loadTheme();
-const _lsFs=localStorage.getItem('irada_font_size');if(_lsFs)applyFontSize(_lsFs);
 checkAuth();
 </script>
 </body>

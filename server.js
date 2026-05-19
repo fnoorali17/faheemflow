@@ -217,7 +217,7 @@ app.post('/api/auth/login', async (req, res) => {
   req.session.userId = user.id;
   // Mark for rollover check on next /me call
   req.session.check_rollover = true;
-  res.json({ ok: true, name: user.name, email: user.email });
+  res.json({ ok: true, name: user.name, email: user.email, font_size: user.font_size || 'default' });
 });
 
 app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ ok: true }); });
