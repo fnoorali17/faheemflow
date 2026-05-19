@@ -24,7 +24,9 @@
   --font:'DM Sans',system-ui,sans-serif;--fd:'Playfair Display',Georgia,serif;
   --r:8px;--rl:12px;
   --sb:env(safe-area-inset-bottom,0px);
+  --app-zoom:1;
 }
+#app-page{zoom:var(--app-zoom)}
 html{background:#1a1714}
 body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
 .app{background:var(--bg)}
@@ -1066,8 +1068,8 @@ html.dark .ppl-badge{background:#042f2e;color:#2dd4bf;border-color:#0d9488}
 </div>
 
 <script>
-// Apply font size from localStorage immediately to prevent flash
-(function(){const fs=localStorage.getItem('irada_font_size');if(fs){const px={small:'13px',default:'15px',large:'19px',xlarge:'22px'}[fs]||'15px';document.documentElement.style.fontSize=px;document.body&&(document.body.style.fontSize=px);}})();
+// Apply zoom from localStorage immediately to prevent flash
+(function(){const fs=localStorage.getItem('irada_font_size');if(fs){const z={small:.87,default:1,large:1.2,xlarge:1.4}[fs]||1;document.documentElement.style.setProperty('--app-zoom',z);}})();
 const PCOLS=['#ef4444','#f97316','#b45309','#22c55e','#3b82f6','#8b5cf6','#ec4899'];
 const STAGS=['urgent','meeting','review','followup','research','personal','idea','waiting'];
 const PC=['#ef4444','#f97316','#3b82f6','#9ca3af'];
@@ -1113,10 +1115,12 @@ async function setTheme(theme){
   if(view==='settings')renderSettings();
 }
 function applyFontSize(size){
-  const sizes={small:'13px',default:'15px',large:'19px',xlarge:'22px'};
-  const px=sizes[size]||'15px';
-  document.documentElement.style.fontSize=px;
-  document.body.style.fontSize=px;
+  const zooms={small:.87,default:1,large:1.2,xlarge:1.4};
+  const z=zooms[size]||1;
+  // zoom scales all px-based CSS proportionally
+  const app=document.getElementById('app-page');
+  if(app)app.style.zoom=z;
+  document.documentElement.style.setProperty('--app-zoom',z);
   localStorage.setItem('irada_font_size',size);
   document.querySelectorAll('.font-size-btn').forEach(btn=>{
     btn.style.borderColor=btn.dataset.size===size?'var(--accent)':'var(--border)';
